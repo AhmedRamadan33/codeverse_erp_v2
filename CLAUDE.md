@@ -3,7 +3,7 @@
 The user prefers to discuss in Egyptian Arabic. Code, identifiers and comments are in English.
 
 ## Goal
-A general-purpose, modular, multi-industry ERP (Odoo-like) aimed first at the Egyptian/Arab market. Modules are installed per business type (retail, restaurant, manufacturing, services, …) on top of a shared core.
+A general-purpose, modular, multi-industry ERP (Odoo-like in breadth, not in hosting model) aimed first at the Egyptian/Arab market. Modules are installed per business type (retail, restaurant, manufacturing, services, …) on top of a shared core.
 
 There are **no production customers**. Design things properly; no backward compatibility or data migration from v1 is needed.
 
@@ -22,7 +22,7 @@ There are **no production customers**. Design things properly; no backward compa
 5. **One table per document type** (sales invoices, purchase invoices, stock moves, journal entries, …). No single catch-all `transactions` table.
 6. **Inventory uses stock moves** with proper costing (weighted average first, FIFO later), plus batch/expiry and serial numbers.
 7. **Configurable without code:** custom fields, document numbering sequences, approval workflows.
-8. **Multi-tenant SaaS** (strategy still to be decided: DB per tenant vs `tenant_id`).
+8. **Single-tenant: one installation per customer.** Not multi-tenant/SaaS; do not add `tenant_id` or tenancy packages. The same codebase is sold to every customer, and each installation enables only the modules that customer's business needs. This requires a clean installer/setup wizard, per-installation module enabling, and safe upgrades (versioned migrations) across many separate installations.
 9. **i18n everywhere.** No hardcoded Arabic or English strings in PHP; use translation files. Arabic + English, RTL support.
 10. **Business logic lives in services/actions**, not controllers or Livewire components. Controllers stay thin. The web UI and the API share the same actions.
 11. **Authorization is enforced server-side** on every route and action (policies/permissions), not only by hiding buttons. No state-changing GET routes.
@@ -44,7 +44,7 @@ Known v1 weaknesses to avoid: single `transactions` god-table, `enable_*` column
 
 ## Current status / next step
 - Project skeleton is ready (Laravel + Livewire + Sanctum + modules + empty `Core` module).
-- **Next:** write the core design document: module boundaries, accounting engine (chart of accounts, journal entries, how each document posts), base schema for documents and inventory, multi-tenancy approach. Then implement `Core` and `Accounting`.
+- **Next:** write the core design document: module boundaries, accounting engine (chart of accounts, journal entries, how each document posts), base schema for documents and inventory, installation/module-enabling and upgrade approach. Then implement `Core` and `Accounting`.
 
 ## Commands
 - `php artisan test`: runs app tests and `Modules/*/tests`
