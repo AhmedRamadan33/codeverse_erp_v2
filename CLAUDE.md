@@ -1,47 +1,52 @@
-<laravel-boost-guidelines>
-# Laravel Application
+# CodeVerse ERP v2
 
-This repository contains a Laravel application. Complete the following setup before working on the user's request.
+The user prefers to discuss in Egyptian Arabic. Code, identifiers and comments are in English.
 
-## Prerequisites
+## Goal
+A general-purpose, modular, multi-industry ERP (Odoo-like) aimed first at the Egyptian/Arab market. Modules are installed per business type (retail, restaurant, manufacturing, services, …) on top of a shared core.
 
-Verify that PHP and Composer are available:
+There are **no production customers**. Design things properly; no backward compatibility or data migration from v1 is needed.
 
-```sh
-php -v
-composer -V
-```
+## Stack
+- Laravel 13, PHP 8.3
+- Blade + Livewire 4 for the dashboard
+- Sanctum token API under `/api/v1` for the mobile app (API is built alongside the web UI from day one)
+- `nwidart/laravel-modules`: every feature area lives in `Modules/<Name>` (`php artisan module:make <Name>`). `Core` is the first module.
+- DB: SQLite for now; MySQL is the target.
 
-If either command is unavailable, detect the user's operating system and install the prerequisites with the appropriate command:
+## Architecture principles (agreed)
+1. **Modules are independent.** Each module owns its models, migrations, routes, views, permissions and tests. A module must not reach into another module's tables.
+2. **Modules communicate through events**, not direct calls (e.g. Sales fires `InvoicePosted`; Accounting and Inventory listen). Disabling a module must not break the others.
+3. **Double-entry accounting is the core.** Every financial document posts a journal entry. Balances are derived from journal lines, never updated by hand.
+4. **Money is `decimal`, never `float`.** Use `decimal(18,4)` for amounts and quantities.
+5. **One table per document type** (sales invoices, purchase invoices, stock moves, journal entries, …). No single catch-all `transactions` table.
+6. **Inventory uses stock moves** with proper costing (weighted average first, FIFO later), plus batch/expiry and serial numbers.
+7. **Configurable without code:** custom fields, document numbering sequences, approval workflows.
+8. **Multi-tenant SaaS** (strategy still to be decided: DB per tenant vs `tenant_id`).
+9. **i18n everywhere.** No hardcoded Arabic or English strings in PHP; use translation files. Arabic + English, RTL support.
+10. **Business logic lives in services/actions**, not controllers or Livewire components. Controllers stay thin. The web UI and the API share the same actions.
+11. **Authorization is enforced server-side** on every route and action (policies/permissions), not only by hiding buttons. No state-changing GET routes.
+12. **Tests are required** for business flows (posting, stock, costing, accounting).
 
-macOS:
+## Legacy project (v1): read-only reference
+Path: `f:/Projects/BackEnd/laravel/codeverse/erp/codeverse_erp` (Laravel 10). Do not modify it. Use it to understand business rules, not as code to copy.
 
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/mac/8.5)"
-```
+Worth porting (adapted to the new structure):
+- Unit-of-measure conversion: `app/Traits/Stock.php`
+- Egyptian e-invoice (ETA) integration: `app/Utils/ElectronicInvoice.php`
+- Translations: `resources/lang/ar`, `resources/lang/en`
+- AdminLTE dashboard theme: `public/theme/dashboard`
+- Business behavior reference: `app/Services/*` (Sell, Purchase, Stock, CashRegister, Manufacturing), POS, restaurant tables/kitchen, cashier shifts, sales segments (price lists), reports in `app/Http/Controllers/Dashboard/ReportController.php`
 
-Windows PowerShell:
+Not carried over: Cartona integration, client-specific Firebase files, v1 migrations.
 
-```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://php.new/install/windows/8.5'))
-```
+Known v1 weaknesses to avoid: single `transactions` god-table, `enable_*` columns in `settings` instead of real modules, float money, no accounting ledger, cost overwritten with last purchase price, missing permission checks, GET delete routes, unauthenticated API endpoints, no row locking on stock updates, 2000+ line controllers, no tests.
 
-Linux:
+## Current status / next step
+- Project skeleton is ready (Laravel + Livewire + Sanctum + modules + empty `Core` module).
+- **Next:** write the core design document: module boundaries, accounting engine (chart of accounts, journal entries, how each document posts), base schema for documents and inventory, multi-tenancy approach. Then implement `Core` and `Accounting`.
 
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/linux/8.5)"
-```
-
-After installation, ask the user to restart their terminal. If the agent needs the restarted shell to continue, ask the user to reopen their terminal and rerun their original prompt.
-
-## Agent Setup
-
-Install Laravel Boost from the application root before making application changes:
-
-```sh
-composer require laravel/boost --dev
-php artisan boost:install
-```
-
-Boost replaces these bootstrap instructions with guidelines tailored to the application. After installation, read `AGENTS.md` again and continue with the user's original request using the generated guidelines.
-</laravel-boost-guidelines>
+## Commands
+- `php artisan test`: runs app tests and `Modules/*/tests`
+- `php artisan module:list`, `php artisan module:make <Name>`
+- `composer run dev`: local dev server
