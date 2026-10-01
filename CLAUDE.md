@@ -27,13 +27,14 @@ There are **no production customers**. Design things properly; no backward compa
 10. **Business logic lives in services/actions**, not controllers or Livewire components. Controllers stay thin. The web UI and the API share the same actions.
 11. **Authorization is enforced server-side** on every route and action (policies/permissions), not only by hiding buttons. No state-changing GET routes.
 12. **Tests are required** for business flows (posting, stock, costing, accounting).
+13. **Country tax compliance is an optional module.** Planned `EgyptTax` module: E-Receipt (port from v1), E-Invoice with digital signing (new), and item codes (GS1/EGS) shared by both. Enabled only for ETA-registered Egyptian customers. Other countries get their own module the same way (e.g. Saudi ZATCA).
 
 ## Legacy project (v1): read-only reference
 Path: `f:/Projects/BackEnd/laravel/codeverse/erp/codeverse_erp` (Laravel 10). Do not modify it. Use it to understand business rules, not as code to copy.
 
 Worth porting (adapted to the new structure):
 - Unit-of-measure conversion: `app/Traits/Stock.php`
-- Egyptian e-invoice (ETA) integration: `app/Utils/ElectronicInvoice.php`
+- Egyptian tax authority (ETA) integration: `app/Utils/ElectronicInvoice.php`. Despite the name, it implements only the **E-Receipt** (B2C POS receipts: `receiptType "S"`, `/api/v1/receiptsubmissions`, auth via client_id/secret + POS serial, no digital signature). It does **not** implement the B2B **E-Invoice**, which needs document signing (USB token/HSM).
 - Translations: `resources/lang/ar`, `resources/lang/en`
 - AdminLTE dashboard theme: `public/theme/dashboard`
 - Business behavior reference: `app/Services/*` (Sell, Purchase, Stock, CashRegister, Manufacturing), POS, restaurant tables/kitchen, cashier shifts, sales segments (price lists), reports in `app/Http/Controllers/Dashboard/ReportController.php`
