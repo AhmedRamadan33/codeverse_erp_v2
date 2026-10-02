@@ -36,6 +36,8 @@ class AccountingScreensTest extends TestCase
             'accounts' => ['/accounting/accounts'],
             'entries' => ['/accounting/entries'],
             'entry form' => ['/accounting/entries/create'],
+            'expenses' => ['/accounting/expenses'],
+            'expense form' => ['/accounting/expenses/create'],
             'fiscal years' => ['/accounting/fiscal-years'],
             'mappings' => ['/accounting/mappings'],
             'taxes' => ['/accounting/taxes'],

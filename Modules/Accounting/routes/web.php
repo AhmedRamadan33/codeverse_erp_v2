@@ -23,7 +23,14 @@ Route::middleware('auth')->prefix('accounting')->name('accounting.')->group(func
         });
     }
 
-    Route::livewire('/fiscal-years',Livewire\FiscalYears\Index::class)->name('fiscal-years.index')->middleware('can:accounting.fiscal_years.manage');
+    Route::prefix('expenses')->name('expenses.')->group(function () {
+        Route::livewire('/', Livewire\Expenses\Index::class)->name('index')->middleware('can:accounting.vouchers.view');
+        Route::livewire('/create', Livewire\Expenses\Form::class)->name('create')->middleware('can:accounting.vouchers.create');
+        Route::livewire('/{id}', Livewire\Expenses\Show::class)->name('show')->middleware('can:accounting.vouchers.view')->whereNumber('id');
+        Route::livewire('/{id}/edit', Livewire\Expenses\Form::class)->name('edit')->middleware('can:accounting.vouchers.create')->whereNumber('id');
+    });
+
+    Route::livewire('/fiscal-years', Livewire\FiscalYears\Index::class)->name('fiscal-years.index')->middleware('can:accounting.fiscal_years.manage');
     Route::livewire('/mappings', Livewire\Mappings\Index::class)->name('mappings.index')->middleware('can:accounting.mappings.manage');
     Route::livewire('/taxes', Livewire\Taxes\Index::class)->name('taxes.index')->middleware('can:accounting.taxes.manage');
     Route::livewire('/payment-methods', Livewire\PaymentMethods\Index::class)->name('payment-methods.index')->middleware('can:accounting.payment_methods.manage');

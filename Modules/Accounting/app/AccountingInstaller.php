@@ -8,6 +8,7 @@ use Modules\Accounting\Enums\AccountType;
 use Modules\Accounting\FiscalYears\Actions\CreateFiscalYear;
 use Modules\Accounting\Models\Account;
 use Modules\Accounting\Models\AccountMapping;
+use Modules\Accounting\Models\ExpenseVoucher;
 use Modules\Accounting\Models\FiscalYear;
 use Modules\Accounting\Models\PaymentMethod;
 use Modules\Accounting\Models\Tax;
@@ -33,6 +34,7 @@ class AccountingInstaller implements ModuleInstaller
         foreach (VoucherKind::cases() as $kind) {
             $this->sequences->define($kind->sequenceKey(), $kind->sequencePrefix(), 5);
         }
+        $this->sequences->define(ExpenseVoucher::SEQUENCE, 'EV-{yyyy}-', 5);
 
         foreach ($chart['taxes'] ?? [] as $tax) {
             Tax::firstOrCreate(['code' => $tax['code']], $tax);
