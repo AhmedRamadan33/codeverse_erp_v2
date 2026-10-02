@@ -48,7 +48,8 @@ Known v1 weaknesses to avoid: single `transactions` god-table, `enable_*` column
 - Core design document (approved): [docs/architecture/core-design.md](docs/architecture/core-design.md). Decisions are in §1, phases in §15.
 - Milestone **v1.0** (first sellable release) = Core + Accounting + Products + Inventory + Purchases + Sales + POS. Custom fields/attachments, advanced accounting (full reconciliation, cost centers, exchange differences), EgyptTax, Restaurant and Manufacturing come after it.
 - Phase 1 (`Core`) is done on branch `phase-1-core`: module registry and `erp:install`/`erp:upgrade`, settings, branches, currencies, sequences, permissions, partners, audit log, AdminLTE 4 layout with all Core admin screens, Sanctum API.
-- **Next:** Phase 2 (`Accounting`).
+- Phase 2 (`Accounting`) is done on branch `phase-2-accounting` (based on `phase-1-core`): chart of accounts with Egyptian template, `PostJournalEntry`/`ReverseJournalEntry`, `AccountResolver` mappings, fiscal years, lock date, year-end closing, taxes, payment methods, manual entries, receipt/payment/expense vouchers with allocation (`Reconciler`), trial balance, general ledger, partner statement.
+- **Next:** Phase 3 (`Products` + `Inventory`).
 - Patterns to follow in new modules: use-case actions authorize the actor themselves (`Gate::forUser($actor)`) and are shared by Livewire and API controllers; module API actions are marked `#[ModuleApi]` and call `TransactionGuard::assertActive()`; validation rules live next to the action (`rules()`); each module registers menu items in its provider and permissions in `config/permissions.php`; tests use `RefreshDatabase` on MySQL over an installation seeded once per run (`TestsSupportInstalledErpSeeder`, `TestsConcernsInstallsErp` gives `$this->admin` and `$this->branch`); only tests that need an uninstalled database use `DatabaseMigrations` with `$seed`/`$seeder` = false.
 
 ## Commands
