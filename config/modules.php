@@ -311,9 +311,17 @@ return [
             'class' => FileActivator::class,
             'statuses-file' => base_path('modules_statuses.json'),
         ],
+        // Per-installation status in the `installed_modules` table (see docs/architecture/core-design.md §11).
+        'database' => [
+            'class' => Modules\Core\Modules\DatabaseActivator::class,
+            'cache-file' => env('MODULES_STATUS_CACHE', true) ? base_path('bootstrap/cache/installed_modules.php') : null,
+            'always-enabled' => ['Core'],
+            // Tests boot and migrate every module present in the codebase.
+            'enable-all' => (bool) env('MODULES_ENABLE_ALL', false),
+        ],
     ],
 
-    'activator' => 'file',
+    'activator' => 'database',
 
     /*
     |--------------------------------------------------------------------------

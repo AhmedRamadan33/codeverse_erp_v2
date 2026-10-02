@@ -1,0 +1,122 @@
+<?php
+
+namespace Modules\Core\Tests\Feature;
+
+use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use LogicException;
+use Modules\Core\Models\InstalledModule;
+use Modules\Core\Modules\DatabaseActivator;
+use Modules\Core\Modules\ModuleException;
+use Modules\Core\Modules\ModuleManager;
+use Modules\Core\Tests\Fixtures\AlphaInstaller;
+use Nwidart\Modules\Laravel\LaravelFileRepository;
+use Tests\TestCase;
+
+/**
+ * Uses DatabaseMigrations: enabling a module runs DDL, which commits implicitly on MySQL.
+ */
+class ModuleManagerTest extends TestCase
+{
+    use DatabaseMigrations;
+
+    private DatabaseActivator $activator;
+
+    private ModuleManager $manager;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([
+            'modules.activators.database.enable-all' => false,
+            'modules.activators.database.cache-file' => null,
+        ]);
+
+        $this->activator = new DatabaseActivator($this->app);
+        $this->app->instance(\Nwidart\Modules\Contracts\ActivatorInterface::class, $this->activator);
+
+        $repository = new LaravelFileRepository($this->app, __DIR__.'/../Fixtures/modules');
+        $this->manager = new ModuleManager($repository, $this->activator);
+
+        AlphaInstaller::$upgrades = [];
+    }
+
+    public function test_enabling_a_module_migrates_it_runs_its_installer_and_records_it(): void
+    {
+        $this->manager->enable('Alpha');
+
+        $this->assertTrue(Schema::hasTable('alpha_items'));
+        $this->assertSame(['seeded'], DB::table('alpha_items')->pluck('name')->all());
+        $this->assertTrue($this->manager->isEnabled('Alpha'));
+        $this->assertSame('1.0.0', InstalledModule::find('Alpha')->version);
+    }
+
+    public function test_a_module_cannot_be_enabled_before_the_modules_it_requires(): void
+    {
+        $this->expectException(ModuleException::class);
+
+        $this->manager->enable('Beta');
+    }
+
+    public function test_a_required_module_cannot_be_disabled_while_a_dependent_is_enabled(): void
+    {
+        $this->manager->enable('Alpha');
+        $this->manager->enable('Beta');
+
+        $this->expectException(ModuleException::class);
+
+        $this->manager->disable('Alpha');
+    }
+
+    public function test_re_enabling_a_disabled_module_does_not_run_its_installer_again(): void
+    {
+        $this->manager->enable('Alpha');
+        $this->manager->disable('Alpha');
+
+        $this->assertFalse($this->manager->isEnabled('Alpha'));
+
+        $this->manager->enable('Alpha');
+
+        $this->assertTrue($this->manager->isEnabled('Alpha'));
+        $this->assertSame(1, DB::table('alpha_items')->count());
+    }
+
+    public function test_core_cannot_be_disabled(): void
+    {
+        $repository = new LaravelFileRepository($this->app, base_path('Modules'));
+        $manager = new ModuleManager($repository, $this->activator);
+
+        $this->expectException(ModuleException::class);
+
+        $manager->disable('Core');
+    }
+
+    public function test_upgrade_runs_the_hook_when_the_code_version_is_newer(): void
+    {
+        $this->manager->enable('Alpha');
+        InstalledModule::whereKey('Alpha')->update(['version' => '0.9.0']);
+
+        $upgraded = $this->manager->upgrade();
+
+        $this->assertSame(['Alpha' => ['from' => '0.9.0', 'to' => '1.0.0']], $upgraded);
+        $this->assertSame([['0.9.0', '1.0.0']], AlphaInstaller::$upgrades);
+        $this->assertSame('1.0.0', InstalledModule::find('Alpha')->version);
+    }
+
+    public function test_modules_are_sorted_after_the_modules_they_require(): void
+    {
+        $repository = new LaravelFileRepository($this->app, __DIR__.'/../Fixtures/modules');
+        $sorted = $this->manager->sortByDependencies([$repository->find('Beta'), $repository->find('Alpha')]);
+
+        $this->assertSame(['Alpha', 'Beta'], array_map(fn ($m) => $m->getName(), $sorted));
+    }
+
+    public function test_module_status_cannot_be_changed_through_nwidart_directly(): void
+    {
+        $this->expectException(LogicException::class);
+
+        $this->activator->setActiveByName('Alpha', true);
+    }
+}

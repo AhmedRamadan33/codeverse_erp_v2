@@ -1,8 +1,11 @@
 {
     "name": "Core",
     "alias": "core",
-    "description": "",
+    "description": "Users, permissions, branches, settings, currencies, numbering, partners, audit log and module management.",
     "keywords": [],
+    "version": "0.1.0",
+    "requires": [],
+    "installer": "Modules\\Core\\CoreInstaller",
     "priority": 0,
     "providers": [
         "Modules\\Core\\Providers\\CoreServiceProvider"

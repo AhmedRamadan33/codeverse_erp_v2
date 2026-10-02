@@ -1,0 +1,8 @@
+{
+    "name": "Alpha",
+    "alias": "alpha",
+    "version": "1.0.0",
+    "requires": [],
+    "installer": "Modules\\Core\\Tests\\Fixtures\\AlphaInstaller",
+    "providers": []
+}

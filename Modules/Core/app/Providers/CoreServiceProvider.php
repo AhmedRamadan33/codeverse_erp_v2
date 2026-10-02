@@ -2,31 +2,28 @@
 
 namespace Modules\Core\Providers;
 
-use Nwidart\Modules\Support\ModuleServiceProvider;
-use Illuminate\Console\Scheduling\Schedule;
+use Modules\Core\Console\DisableModuleCommand;
+use Modules\Core\Console\EnableModuleCommand;
+use Modules\Core\Console\UpgradeCommand;
+use Modules\Core\Modules\ModuleManager;
+use Modules\Core\Support\ErpModuleServiceProvider;
 
-class CoreServiceProvider extends ModuleServiceProvider
+class CoreServiceProvider extends ErpModuleServiceProvider
 {
-    /**
-     * The name of the module.
-     */
     protected string $name = 'Core';
 
-    /**
-     * The lowercase version of the module name.
-     */
     protected string $nameLower = 'core';
 
     /**
-     * Command classes to register.
-     *
      * @var string[]
      */
-    // protected array $commands = [];
+    protected array $commands = [
+        EnableModuleCommand::class,
+        DisableModuleCommand::class,
+        UpgradeCommand::class,
+    ];
 
     /**
-     * Provider classes to register.
-     *
      * @var string[]
      */
     protected array $providers = [
@@ -34,13 +31,10 @@ class CoreServiceProvider extends ModuleServiceProvider
         RouteServiceProvider::class,
     ];
 
-    /**
-     * Define module schedules.
-     * 
-     * @param $schedule
-     */
-    // protected function configureSchedules(Schedule $schedule): void
-    // {
-    //     $schedule->command('inspire')->hourly();
-    // }
+    public function register(): void
+    {
+        parent::register();
+
+        $this->app->singleton(ModuleManager::class);
+    }
 }
