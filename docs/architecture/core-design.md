@@ -95,7 +95,8 @@ The use-case action holds the transaction. Locks are taken in this fixed order t
 | `settings` | module, key, value (json), branch_id nullable (per-branch override). Read through a typed `Settings` service with defaults declared per module. |
 | `currencies` | code (ISO 4217), name (translatable), symbol, decimal_places, is_active. Base currency is a setting and cannot change after the first posted journal entry. |
 | `exchange_rates` | currency_id, date, rate `decimal(18,6)` = base units per 1 foreign unit |
-| `sequences` | key (e.g. `sales.invoice`), branch_id nullable, prefix pattern (`INV-{branch}-{yyyy}-`), padding, next_number, reset (`never`/`yearly`), current_period |
+| `sequences` | key (e.g. `sales.invoice`), branch_id nullable (null = shared default), prefix pattern (`INV-{branch}-{yyyy}-`), padding, reset (`never`/`yearly`/`monthly`) |
+| `sequence_counters` | sequence_id, period (`''` / `YYYY` / `YYYY-MM`), next_number. One counter per period, so a document dated in a previous year keeps that year's numbering. |
 | `partners` | type (`person`/`company`), name, is_customer, is_supplier, tax_number, national_id, commercial_register, phone, email, address, credit_limit `decimal(18,4)` nullable, payment_term_days, branch_id nullable, is_active |
 | `custom_field_definitions` | *After Sales.* entity (e.g. `sales.invoice`, `core.partner`), key, type (text/number/date/select/bool), options json, label (translatable), required, sort |
 | `attachments` | *After Sales.* morph (attachable), path, disk, original_name, mime, size, uploaded_by |
