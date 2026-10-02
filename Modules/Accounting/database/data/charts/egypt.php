@@ -115,4 +115,14 @@ return [
         'fx.gain' => '4203',
         'fx.loss' => '5404',
     ],
+
+    'taxes' => [
+        ['code' => 'VAT14', 'name' => ['ar' => 'ضريبة القيمة المضافة 14%', 'en' => 'VAT 14%'], 'rate' => '14', 'type' => 'percent', 'scope' => 'both'],
+        ['code' => 'VAT0', 'name' => ['ar' => 'معفى من الضريبة', 'en' => 'VAT exempt'], 'rate' => '0', 'type' => 'percent', 'scope' => 'both'],
+    ],
+
+    'payment_methods' => [
+        ['type' => 'cash', 'account' => '120101', 'name' => ['ar' => 'نقدي', 'en' => 'Cash']],
+        ['type' => 'bank_transfer', 'account' => '120201', 'name' => ['ar' => 'تحويل بنكي', 'en' => 'Bank transfer']],
+    ],
 ];

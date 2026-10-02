@@ -15,6 +15,7 @@ return [
     'before_lock_date' => 'القيود مقفلة حتى تاريخ :date.',
     'missing_mapping' => 'لم يتم تحديد حساب لـ ":key". حدده من ربط الحسابات.',
     'reverse_draft' => 'يمكن عكس القيود المرحّلة فقط.',
+    'already_posted' => 'القيد :number مرحّل بالفعل.',
     'already_reversed' => 'القيد :number تم عكسه من قبل أو هو نفسه قيد عكسي.',
     'reversal_before_original' => 'لا يمكن أن يسبق تاريخ القيد العكسي تاريخ القيد الأصلي (:date).',
 ];

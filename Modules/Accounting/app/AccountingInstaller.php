@@ -9,6 +9,8 @@ use Modules\Accounting\FiscalYears\Actions\CreateFiscalYear;
 use Modules\Accounting\Models\Account;
 use Modules\Accounting\Models\AccountMapping;
 use Modules\Accounting\Models\FiscalYear;
+use Modules\Accounting\Models\PaymentMethod;
+use Modules\Accounting\Models\Tax;
 use Modules\Accounting\Posting\PostJournalEntry;
 use Modules\Core\Modules\ModuleInstaller;
 use Modules\Core\Sequences\Sequences;
@@ -24,8 +26,19 @@ class AccountingInstaller implements ModuleInstaller
 
     public function install(): void
     {
-        $this->installChart($this->settings->get('accounting.chart_template'));
+        $chart = $this->installChart($this->settings->get('accounting.chart_template'));
         $this->sequences->define(PostJournalEntry::SEQUENCE, 'JE-{yyyy}-', 6);
+
+        foreach ($chart['taxes'] ?? [] as $tax) {
+            Tax::firstOrCreate(['code' => $tax['code']], $tax);
+        }
+
+        foreach ($chart['payment_methods'] ?? [] as $i => $method) {
+            PaymentMethod::firstOrCreate(
+                ['type' => $method['type'], 'account_id' => Account::where('code', $method['account'])->value('id')],
+                ['name' => $method['name'], 'sort' => $i],
+            );
+        }
 
         if (! FiscalYear::exists()) {
             $this->fiscalYears->handle(null, CarbonImmutable::now()->startOfYear());
@@ -37,7 +50,10 @@ class AccountingInstaller implements ModuleInstaller
         //
     }
 
-    private function installChart(string $template): void
+    /**
+     * @return array<string, mixed> the template, for the other defaults it carries
+     */
+    private function installChart(string $template): array
     {
         $chart = require module_path('Accounting', "database/data/charts/{$template}.php");
         $systemCodes = array_values($chart['mappings']);
@@ -65,5 +81,7 @@ class AccountingInstaller implements ModuleInstaller
                 ['account_id' => $ids[$code]],
             );
         }
+
+        return $chart;
     }
 }

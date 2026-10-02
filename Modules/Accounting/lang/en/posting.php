@@ -15,6 +15,7 @@ return [
     'before_lock_date' => 'Entries are locked up to :date.',
     'missing_mapping' => 'No account is set for ":key". Set it in account mappings.',
     'reverse_draft' => 'Only posted entries can be reversed.',
+    'already_posted' => 'Entry :number is already posted.',
     'already_reversed' => 'Entry :number is already reversed or is itself a reversal.',
     'reversal_before_original' => 'The reversal cannot be dated before the original entry (:date).',
 ];
