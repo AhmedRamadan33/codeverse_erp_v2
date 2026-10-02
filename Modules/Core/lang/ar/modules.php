@@ -11,4 +11,19 @@ return [
     'upgraded' => 'تم تحديث الموديول :module من :from إلى :to.',
     'nothing_to_upgrade' => 'كل الموديولات محدثة.',
     'already_installed' => 'تم إعداد هذا النظام من قبل.',
+    'fields' => [
+        'name' => 'الموديول',
+        'requires' => 'يعتمد على',
+        'version' => 'الإصدار',
+    ],
+    'status' => [
+        'enabled' => 'مفعّل',
+        'disabled' => 'معطّل',
+        'not_installed' => 'غير مثبت',
+    ],
+    'enable' => 'تفعيل',
+    'disable' => 'تعطيل',
+    'always_enabled' => 'جزء أساسي من النظام',
+    'upgrade_pending' => 'المثبت :version؛ شغّل erp:upgrade',
+    'confirm_disable' => 'تعطيل هذا الموديول؟ بياناته محفوظة ويمكن تفعيله مرة أخرى.',
 ];

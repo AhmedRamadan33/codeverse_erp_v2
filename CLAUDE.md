@@ -36,7 +36,7 @@ Worth porting (adapted to the new structure):
 - Unit-of-measure conversion: `app/Traits/Stock.php`
 - Egyptian tax authority (ETA) integration: `app/Utils/ElectronicInvoice.php`. Despite the name, it implements only the **E-Receipt** (B2C POS receipts: `receiptType "S"`, `/api/v1/receiptsubmissions`, auth via client_id/secret + POS serial, no digital signature). It does **not** implement the B2B **E-Invoice**, which needs document signing (USB token/HSM).
 - Translations: `resources/lang/ar`, `resources/lang/en`
-- AdminLTE dashboard theme: `public/theme/dashboard`
+- AdminLTE dashboard theme: `public/theme/dashboard` (look and feel only; v2 uses AdminLTE 4 from npm)
 - Business behavior reference: `app/Services/*` (Sell, Purchase, Stock, CashRegister, Manufacturing), POS, restaurant tables/kitchen, cashier shifts, sales segments (price lists), reports in `app/Http/Controllers/Dashboard/ReportController.php`
 
 Not carried over: Cartona integration, client-specific Firebase files, v1 migrations.
@@ -47,7 +47,9 @@ Known v1 weaknesses to avoid: single `transactions` god-table, `enable_*` column
 - Project skeleton is ready (Laravel + Livewire + Sanctum + modules + empty `Core` module).
 - Core design document (approved): [docs/architecture/core-design.md](docs/architecture/core-design.md). Decisions are in §1, phases in §15.
 - Milestone **v1.0** (first sellable release) = Core + Accounting + Products + Inventory + Purchases + Sales + POS. Custom fields/attachments, advanced accounting (full reconciliation, cost centers, exchange differences), EgyptTax, Restaurant and Manufacturing come after it.
-- **Now:** Phase 1 (`Core`).
+- Phase 1 (`Core`) is done on branch `phase-1-core`: module registry and `erp:install`/`erp:upgrade`, settings, branches, currencies, sequences, permissions, partners, audit log, AdminLTE 4 layout with all Core admin screens, Sanctum API.
+- **Next:** Phase 2 (`Accounting`).
+- Patterns to follow in new modules: use-case actions authorize the actor themselves (`Gate::forUser($actor)`) and are shared by Livewire and API controllers; module API actions are marked `#[ModuleApi]` and call `TransactionGuard::assertActive()`; validation rules live next to the action (`rules()`); each module registers menu items in its provider and permissions in `config/permissions.php`; tests use `RefreshDatabase` on MySQL.
 
 ## Commands
 - `php artisan test`: runs app tests and `Modules/*/tests`

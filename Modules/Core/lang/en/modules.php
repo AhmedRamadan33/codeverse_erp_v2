@@ -11,4 +11,19 @@ return [
     'upgraded' => 'Module :module upgraded from :from to :to.',
     'nothing_to_upgrade' => 'All modules are up to date.',
     'already_installed' => 'This installation is already set up.',
+    'fields' => [
+        'name' => 'Module',
+        'requires' => 'Requires',
+        'version' => 'Version',
+    ],
+    'status' => [
+        'enabled' => 'Enabled',
+        'disabled' => 'Disabled',
+        'not_installed' => 'Not installed',
+    ],
+    'enable' => 'Enable',
+    'disable' => 'Disable',
+    'always_enabled' => 'Part of the core system',
+    'upgrade_pending' => 'Installed :version; run erp:upgrade',
+    'confirm_disable' => 'Disable this module? Its data is kept and it can be enabled again.',
 ];

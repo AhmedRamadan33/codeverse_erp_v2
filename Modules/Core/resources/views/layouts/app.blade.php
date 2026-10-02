@@ -36,7 +36,7 @@
                         <i class="bi bi-person-circle"></i> {{ auth()->user()->name }}
                     </a>
                     <div class="dropdown-menu dropdown-menu-end">
-                        <form method="POST" action="{{ route('logout') }}">
+                        <form method="POST" action="{{ route('core.logout') }}">
                             @csrf
                             <button type="submit" class="dropdown-item"><i class="bi bi-box-arrow-right"></i> {{ __('core::auth.logout') }}</button>
                         </form>

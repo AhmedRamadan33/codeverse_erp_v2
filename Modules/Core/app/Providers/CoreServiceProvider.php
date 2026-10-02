@@ -85,5 +85,15 @@ class CoreServiceProvider extends ErpModuleServiceProvider
         $menu->group('administration', 'core::menu.administration', 'bi-gear', order: 900);
 
         $menu->add(new MenuItem('contacts', 'core::menu.partners', 'core.partners.index', 'bi-person-lines-fill', 'core.partners.view', 10));
+
+        $menu->add(new MenuItem('administration', 'core::menu.settings', 'core.settings.edit', 'bi-building', 'core.settings.manage', 10));
+        $menu->add(new MenuItem('administration', 'core::menu.branches', 'core.branches.index', 'bi-diagram-3', 'core.branches.view', 20));
+        $menu->add(new MenuItem('administration', 'core::menu.users', 'core.users.index', 'bi-person-badge', 'core.users.view', 30));
+        $menu->add(new MenuItem('administration', 'core::menu.roles', 'core.roles.index', 'bi-shield-lock', 'core.roles.manage', 40));
+        $menu->add(new MenuItem('administration', 'core::menu.currencies', 'core.currencies.index', 'bi-currency-exchange', 'core.currencies.manage', 50));
+        $menu->add(new MenuItem('administration', 'core::menu.exchange_rates', 'core.exchange-rates.index', 'bi-graph-up', 'core.exchange_rates.manage', 60));
+        $menu->add(new MenuItem('administration', 'core::menu.sequences', 'core.sequences.index', 'bi-123', 'core.sequences.manage', 70));
+        $menu->add(new MenuItem('administration', 'core::menu.audit', 'core.audit.index', 'bi-clock-history', 'core.audit.view', 80));
+        $menu->add(new MenuItem('administration', 'core::menu.modules', 'core.modules.index', 'bi-puzzle', 'core.modules.manage', 90));
     }
 }

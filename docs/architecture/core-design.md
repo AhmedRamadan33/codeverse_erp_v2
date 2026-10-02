@@ -436,7 +436,7 @@ PostDeferredValuation::handle(DeferredValuationData $data): ?JournalEntry  // PO
 - Seeders contain only master data needed to run (units, currencies, chart templates). Demo data is a separate command.
 
 ### 11.4 Database
-- **MySQL 8 from Phase 1**, for local development, tests and CI.
+- **MySQL 8 from Phase 1**, for local development, tests and CI. The connection forces the InnoDB engine, so a server whose default is MyISAM (as some WAMP setups are) still gets transactions, foreign keys and row locks.
 - SQLite is not supported. It has no real row locks (`lockForUpdate` is a no-op), and its `decimal` columns have numeric affinity, so money can come back as a float.
 - Tests use a separate MySQL database (`<db>_testing`) with `RefreshDatabase`.
 
@@ -445,7 +445,9 @@ PostDeferredValuation::handle(DeferredValuationData $data): ?JournalEntry  // PO
 - System master data uses translatable JSON columns: account names, units, categories, branches, taxes, product names.
   - Arabic is required and English is optional.
   - Display falls back to Arabic when the current locale's value is missing (`fallback_locale = ar` for translatable attributes).
-- The layout switches `dir="rtl"` by locale. The locale is a per-user preference with an installation default.
+- The layout switches `dir="rtl"` by locale. The locale is a per-user preference with an installation default; guests choose it per session and the API follows `Accept-Language`.
+- UI kit: AdminLTE 4 (Bootstrap 5, no jQuery) installed from npm and bundled by Vite, with one stylesheet per direction (`app-ltr.css`, `app-rtl.css`). It keeps the v1 look without copying v1's AdminLTE 3 files. All modules share one bundle.
+- Each module registers its sidebar items in its service provider (`Menu`); an item shows only when the user has its permission, and every route still authorizes on its own.
 - The API returns translated labels in the `Accept-Language` locale, and raw codes alongside them.
 
 ## 13. Web and API
@@ -469,7 +471,7 @@ PostDeferredValuation::handle(DeferredValuationData $data): ?JournalEntry  // PO
 
 | Phase | Scope |
 |-------|-------|
-| **1. Core** | MySQL setup, DB activator + `installed_modules`, installer command, settings, branches, currencies/rates, sequences, users/roles/permissions, partners, audit log, base layout (RTL, AdminLTE port), API auth |
+| **1. Core** | MySQL setup, DB activator + `installed_modules`, installer command, settings, branches, currencies/rates, sequences, users/roles/permissions, partners, audit log, base layout (RTL, AdminLTE 4), admin screens, API auth |
 | **2. Accounting** | Chart + Egyptian template, `PostJournalEntry`/`Reverse`, periods & lock date, account mappings, taxes, manual journal entries, receipt/payment/expense vouchers with invoice allocation (§6.7), trial balance, general ledger, partner statement |
 | **3. Products + Inventory** | Units/conversions, moves, WAC, balances, adjustments, transfers, opening stock, batches/serials |
 | **4. Purchases** | Invoices and returns end-to-end with stock and accounting |
