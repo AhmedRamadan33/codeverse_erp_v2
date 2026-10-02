@@ -18,4 +18,7 @@ return [
     'already_posted' => 'القيد :number مرحّل بالفعل.',
     'already_reversed' => 'القيد :number تم عكسه من قبل أو هو نفسه قيد عكسي.',
     'reversal_before_original' => 'لا يمكن أن يسبق تاريخ القيد العكسي تاريخ القيد الأصلي (:date).',
+    'reconcile_mismatch' => 'يمكن الربط فقط بين حركات نفس العميل/المورد ونفس الحساب.',
+    'reconcile_sides' => 'اربط حركة مدينة مرحّلة بحركة دائنة مرحّلة.',
+    'reconcile_amount' => 'المبلغ :amount أكبر من المتبقي المفتوح.',
 ];

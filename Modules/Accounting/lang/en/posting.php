@@ -18,4 +18,7 @@ return [
     'already_posted' => 'Entry :number is already posted.',
     'already_reversed' => 'Entry :number is already reversed or is itself a reversal.',
     'reversal_before_original' => 'The reversal cannot be dated before the original entry (:date).',
+    'reconcile_mismatch' => 'Only items of the same customer/supplier and account can be matched.',
+    'reconcile_sides' => 'Match a posted debit item with a posted credit item.',
+    'reconcile_amount' => 'The amount :amount is more than what is still open.',
 ];

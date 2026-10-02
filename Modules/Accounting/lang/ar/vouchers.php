@@ -1,0 +1,42 @@
+<?php
+
+return [
+    'kinds' => [
+        'receipt' => 'سند قبض',
+        'payment' => 'سند صرف',
+    ],
+    'new' => [
+        'receipt' => 'سند قبض جديد',
+        'payment' => 'سند صرف جديد',
+    ],
+    'fields' => [
+        'number' => 'الرقم',
+        'date' => 'التاريخ',
+        'branch' => 'الفرع',
+        'partner' => 'العميل / المورد',
+        'payment_method' => 'طريقة الدفع',
+        'currency' => 'العملة',
+        'exchange_rate' => 'سعر الصرف',
+        'amount' => 'المبلغ',
+        'reference' => 'المرجع (رقم الشيك أو التحويل)',
+        'description' => 'البيان',
+        'status' => 'الحالة',
+        'entry' => 'القيد',
+        'allocated' => 'المخصص',
+        'unallocated' => 'غير مخصص',
+        'cancel_reason' => 'سبب الإلغاء',
+    ],
+    'open_items' => 'الحركات المفتوحة',
+    'open_items_hint' => 'اختر ما يسدده هذا السند. أي مبلغ غير مخصص يبقى على الحساب كدفعة مقدمة.',
+    'item' => 'الحركة',
+    'open_amount' => 'المتبقي',
+    'allocate' => 'تخصيص',
+    'fill' => 'توزيع بالترتيب',
+    'post' => 'ترحيل',
+    'cancel' => 'إلغاء السند',
+    'posted' => 'تم ترحيل السند :number.',
+    'cancelled' => 'تم إلغاء السند.',
+    'over_allocated' => 'إجمالي التخصيص أكبر من مبلغ السند.',
+    'rate_required' => 'أدخل سعر الصرف للعملة الأجنبية.',
+    'too_many_decimals' => 'هذه العملة تسمح بـ :places خانات عشرية.',
+];

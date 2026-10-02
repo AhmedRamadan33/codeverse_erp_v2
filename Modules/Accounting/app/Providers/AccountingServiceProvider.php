@@ -40,6 +40,8 @@ class AccountingServiceProvider extends ErpModuleServiceProvider
         $menu->group('accounting', 'accounting::menu.accounting', 'bi-journal-text', order: 50);
         $menu->add(new MenuItem('accounting', 'accounting::menu.accounts', 'accounting.accounts.index', 'bi-diagram-2', 'accounting.accounts.view', 10));
         $menu->add(new MenuItem('accounting', 'accounting::menu.entries', 'accounting.entries.index', 'bi-journal-plus', 'accounting.entries.view', 20));
+        $menu->add(new MenuItem('accounting', 'accounting::menu.receipts', 'accounting.receipts.index', 'bi-box-arrow-in-down', 'accounting.vouchers.view', 30));
+        $menu->add(new MenuItem('accounting', 'accounting::menu.payments', 'accounting.payments.index', 'bi-box-arrow-up', 'accounting.vouchers.view', 40));
 
         $menu->group('accounting_settings', 'accounting::menu.accounting_settings', 'bi-sliders', order: 800);
         $menu->add(new MenuItem('accounting_settings', 'accounting::menu.fiscal_years', 'accounting.fiscal-years.index', 'bi-calendar3', 'accounting.fiscal_years.manage', 10));

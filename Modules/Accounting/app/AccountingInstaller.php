@@ -12,6 +12,7 @@ use Modules\Accounting\Models\FiscalYear;
 use Modules\Accounting\Models\PaymentMethod;
 use Modules\Accounting\Models\Tax;
 use Modules\Accounting\Posting\PostJournalEntry;
+use Modules\Accounting\Vouchers\VoucherKind;
 use Modules\Core\Modules\ModuleInstaller;
 use Modules\Core\Sequences\Sequences;
 use Modules\Core\Settings\Settings;
@@ -28,6 +29,10 @@ class AccountingInstaller implements ModuleInstaller
     {
         $chart = $this->installChart($this->settings->get('accounting.chart_template'));
         $this->sequences->define(PostJournalEntry::SEQUENCE, 'JE-{yyyy}-', 6);
+
+        foreach (VoucherKind::cases() as $kind) {
+            $this->sequences->define($kind->sequenceKey(), $kind->sequencePrefix(), 5);
+        }
 
         foreach ($chart['taxes'] ?? [] as $tax) {
             Tax::firstOrCreate(['code' => $tax['code']], $tax);

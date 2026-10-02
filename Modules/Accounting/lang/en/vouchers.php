@@ -1,0 +1,42 @@
+<?php
+
+return [
+    'kinds' => [
+        'receipt' => 'Receipt voucher',
+        'payment' => 'Payment voucher',
+    ],
+    'new' => [
+        'receipt' => 'New receipt voucher',
+        'payment' => 'New payment voucher',
+    ],
+    'fields' => [
+        'number' => 'Number',
+        'date' => 'Date',
+        'branch' => 'Branch',
+        'partner' => 'Customer / supplier',
+        'payment_method' => 'Payment method',
+        'currency' => 'Currency',
+        'exchange_rate' => 'Exchange rate',
+        'amount' => 'Amount',
+        'reference' => 'Reference (cheque, transfer no.)',
+        'description' => 'Description',
+        'status' => 'Status',
+        'entry' => 'Journal entry',
+        'allocated' => 'Allocated',
+        'unallocated' => 'Not allocated',
+        'cancel_reason' => 'Cancellation reason',
+    ],
+    'open_items' => 'Open items',
+    'open_items_hint' => 'Choose what this voucher settles. Anything not allocated stays on the account as an advance.',
+    'item' => 'Item',
+    'open_amount' => 'Open',
+    'allocate' => 'Allocate',
+    'fill' => 'Fill in order',
+    'post' => 'Post',
+    'cancel' => 'Cancel voucher',
+    'posted' => 'Voucher :number posted.',
+    'cancelled' => 'Voucher cancelled.',
+    'over_allocated' => 'Allocations total more than the voucher amount.',
+    'rate_required' => 'Enter the exchange rate for a foreign currency.',
+    'too_many_decimals' => 'This currency allows :places decimal places.',
+];
