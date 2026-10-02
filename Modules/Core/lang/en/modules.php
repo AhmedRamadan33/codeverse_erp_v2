@@ -10,4 +10,5 @@ return [
     'disabled' => 'Module :module disabled.',
     'upgraded' => 'Module :module upgraded from :from to :to.',
     'nothing_to_upgrade' => 'All modules are up to date.',
+    'already_installed' => 'This installation is already set up.',
 ];

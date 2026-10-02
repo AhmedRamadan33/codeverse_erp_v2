@@ -10,4 +10,5 @@ return [
     'disabled' => 'تم تعطيل الموديول :module.',
     'upgraded' => 'تم تحديث الموديول :module من :from إلى :to.',
     'nothing_to_upgrade' => 'كل الموديولات محدثة.',
+    'already_installed' => 'تم إعداد هذا النظام من قبل.',
 ];

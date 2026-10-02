@@ -10,6 +10,7 @@ use Modules\Core\Models\InstalledModule;
 use Modules\Core\Modules\DatabaseActivator;
 use Modules\Core\Modules\ModuleException;
 use Modules\Core\Modules\ModuleManager;
+use Modules\Core\Permissions\PermissionSynchronizer;
 use Modules\Core\Tests\Fixtures\AlphaInstaller;
 use Nwidart\Modules\Laravel\LaravelFileRepository;
 use Tests\TestCase;
@@ -38,7 +39,7 @@ class ModuleManagerTest extends TestCase
         $this->app->instance(\Nwidart\Modules\Contracts\ActivatorInterface::class, $this->activator);
 
         $repository = new LaravelFileRepository($this->app, __DIR__.'/../Fixtures/modules');
-        $this->manager = new ModuleManager($repository, $this->activator);
+        $this->manager = new ModuleManager($repository, $this->activator, app(PermissionSynchronizer::class));
 
         AlphaInstaller::$upgrades = [];
     }
@@ -86,7 +87,7 @@ class ModuleManagerTest extends TestCase
     public function test_core_cannot_be_disabled(): void
     {
         $repository = new LaravelFileRepository($this->app, base_path('Modules'));
-        $manager = new ModuleManager($repository, $this->activator);
+        $manager = new ModuleManager($repository, $this->activator, app(PermissionSynchronizer::class));
 
         $this->expectException(ModuleException::class);
 

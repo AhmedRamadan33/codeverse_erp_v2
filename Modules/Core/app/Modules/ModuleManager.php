@@ -5,6 +5,7 @@ namespace Modules\Core\Modules;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Modules\Core\Models\InstalledModule;
+use Modules\Core\Permissions\PermissionSynchronizer;
 use Nwidart\Modules\Contracts\ActivatorInterface;
 use Nwidart\Modules\Contracts\RepositoryInterface;
 use Nwidart\Modules\Module;
@@ -17,6 +18,7 @@ class ModuleManager
     public function __construct(
         private readonly RepositoryInterface $modules,
         private readonly ActivatorInterface $activator,
+        private readonly PermissionSynchronizer $permissions,
     ) {}
 
     /**
@@ -41,6 +43,8 @@ class ModuleManager
         $this->migrate($module);
 
         DB::transaction(function () use ($module, $record) {
+            $this->permissions->sync($module);
+
             if ($record === null) {
                 $this->installer($module)?->install();
 
@@ -93,6 +97,8 @@ class ModuleManager
         $upgraded = [];
 
         foreach ($this->sortByDependencies($this->enabledModules()) as $module) {
+            $this->permissions->sync($module);
+
             $record = InstalledModule::find($module->getName());
             $from = $record?->version;
             $to = $this->version($module);
