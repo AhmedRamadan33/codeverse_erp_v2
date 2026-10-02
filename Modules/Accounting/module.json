@@ -1,0 +1,14 @@
+{
+    "name": "Accounting",
+    "alias": "accounting",
+    "description": "Chart of accounts, journal entries, fiscal periods, taxes, vouchers and financial reports.",
+    "keywords": [],
+    "version": "0.1.0",
+    "requires": ["Core"],
+    "installer": "Modules\\Accounting\\AccountingInstaller",
+    "priority": 10,
+    "providers": [
+        "Modules\\Accounting\\Providers\\AccountingServiceProvider"
+    ],
+    "files": []
+}

@@ -315,7 +315,7 @@ return [
         'database' => [
             'class' => Modules\Core\Modules\DatabaseActivator::class,
             'cache-file' => env('MODULES_STATUS_CACHE', true) ? base_path('bootstrap/cache/installed_modules.php') : null,
-            'always-enabled' => ['Core'],
+            'always-enabled' => ['Core', 'Accounting'],
             // Tests boot and migrate every module present in the codebase.
             'enable-all' => (bool) env('MODULES_ENABLE_ALL', false),
         ],

@@ -118,6 +118,6 @@ class ModuleManagerTest extends TestCase
     {
         $this->expectException(LogicException::class);
 
-        $this->activator->setActiveByName('Alpha', true);
+        $this->activator->setActive($this->app['modules']->find('Core'), true);
     }
 }

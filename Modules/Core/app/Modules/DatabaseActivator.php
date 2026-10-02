@@ -81,9 +81,13 @@ class DatabaseActivator implements ActivatorInterface
         $this->refuseDirectWrite();
     }
 
+    /**
+     * Called by `module:make` after generating code. Generating a module does not install it
+     * on this installation, so this is deliberately a no-op; use `erp:module:enable`.
+     */
     public function setActiveByName(string $name, bool $active): void
     {
-        $this->refuseDirectWrite();
+        //
     }
 
     public function delete(Module $module): void

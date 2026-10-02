@@ -18,12 +18,6 @@ use Modules\Core\Settings\Settings;
  */
 class InstallErp
 {
-    /**
-     * Modules every installation has (docs/architecture/core-design.md D1), enabled in this order.
-     * Accounting joins this list when it exists.
-     */
-    public const BASE_MODULES = ['Core'];
-
     public function __construct(
         private readonly ModuleManager $modules,
         private readonly Settings $settings,
@@ -49,7 +43,8 @@ class InstallErp
             $this->settings->set('core.default_locale', $data->locale);
         });
 
-        foreach (self::BASE_MODULES as $module) {
+        // Modules every installation has (core-design.md D1), listed in dependency order.
+        foreach (config('modules.activators.database.always-enabled', ['Core']) as $module) {
             $this->modules->enable($module);
         }
 
