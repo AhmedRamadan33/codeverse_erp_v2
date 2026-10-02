@@ -3,6 +3,7 @@
 namespace Modules\Core\Providers;
 
 use App\Models\User;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
 use Modules\Core\Console\DisableModuleCommand;
@@ -67,6 +68,9 @@ class CoreServiceProvider extends ErpModuleServiceProvider
 
             return $user->isSuperAdmin() ? true : null;
         });
+
+        // @money($amount) or @money($amount, 3): thousands separators, no float conversion.
+        Blade::directive('money', fn (string $expression) => "<?php echo e(\\Modules\\Core\\Support\\Money::format({$expression})); ?>");
 
         View::composer('core::layouts.*', function ($view) {
             try {
