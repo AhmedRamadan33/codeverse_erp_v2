@@ -4,11 +4,10 @@ namespace Modules\Core\Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Modules\Core\Installation\InstallationData;
-use Modules\Core\Installation\InstallErp;
 use Modules\Core\Models\Branch;
 use Modules\Core\Sequences\Sequences;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Concerns\InstallsErp;
 use Tests\TestCase;
 
 /**
@@ -16,19 +15,13 @@ use Tests\TestCase;
  */
 class AdminScreensTest extends TestCase
 {
-    use RefreshDatabase;
-
-    private User $admin;
+    use InstallsErp, RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->admin = app(InstallErp::class)->handle(new InstallationData(
-            companyName: 'Acme', baseCurrency: 'EGP', locale: 'ar',
-            branchNameAr: 'الرئيسي', branchNameEn: 'Main', branchCode: 'MAIN',
-            adminName: 'Admin', adminEmail: 'admin@example.com', adminPassword: 'password123',
-        ));
+        $this->installErp();
         app(Sequences::class)->define('core.test', 'T-{yyyy}-');
     }
 

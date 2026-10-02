@@ -50,17 +50,17 @@ class SettingsTest extends TestCase
         $this->settings->set('core.company_name', 'Acme');
         $this->settings->set('core.company_name', 'CodeVerse');
 
-        $this->assertSame(1, Setting::count());
+        $this->assertSame(1, Setting::where(['module' => 'core', 'key' => 'company_name'])->count());
         $this->assertSame('CodeVerse', $this->settings->get('core.company_name'));
     }
 
     public function test_the_database_rejects_a_duplicate_installation_wide_value(): void
     {
-        Setting::create(['module' => 'core', 'key' => 'company_name', 'value' => 'A']);
+        Setting::create(['module' => 'core', 'key' => 'company_phone', 'value' => 'A']);
 
         $this->expectException(UniqueConstraintViolationException::class);
 
-        Setting::create(['module' => 'core', 'key' => 'company_name', 'value' => 'B']);
+        Setting::create(['module' => 'core', 'key' => 'company_phone', 'value' => 'B']);
     }
 
     public function test_unknown_keys_fail_fast(): void

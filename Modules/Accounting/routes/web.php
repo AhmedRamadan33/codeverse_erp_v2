@@ -30,6 +30,12 @@ Route::middleware('auth')->prefix('accounting')->name('accounting.')->group(func
         Route::livewire('/{id}/edit', Livewire\Expenses\Form::class)->name('edit')->middleware('can:accounting.vouchers.create')->whereNumber('id');
     });
 
+    Route::prefix('reports')->name('reports.')->middleware('can:accounting.reports.view')->group(function () {
+        Route::livewire('/trial-balance', Livewire\Reports\TrialBalance::class)->name('trial-balance');
+        Route::livewire('/general-ledger', Livewire\Reports\GeneralLedger::class)->name('general-ledger');
+        Route::livewire('/partner-statement', Livewire\Reports\PartnerStatement::class)->name('partner-statement');
+    });
+
     Route::livewire('/fiscal-years', Livewire\FiscalYears\Index::class)->name('fiscal-years.index')->middleware('can:accounting.fiscal_years.manage');
     Route::livewire('/mappings', Livewire\Mappings\Index::class)->name('mappings.index')->middleware('can:accounting.mappings.manage');
     Route::livewire('/taxes', Livewire\Taxes\Index::class)->name('taxes.index')->middleware('can:accounting.taxes.manage');

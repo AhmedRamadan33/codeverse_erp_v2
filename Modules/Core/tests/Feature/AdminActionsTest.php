@@ -9,8 +9,6 @@ use Laravel\Sanctum\Sanctum;
 use Modules\Core\Branches\Actions\SaveBranch;
 use Modules\Core\Currencies\Actions\SaveExchangeRate;
 use Modules\Core\Currencies\Actions\UpdateCurrency;
-use Modules\Core\Installation\InstallationData;
-use Modules\Core\Installation\InstallErp;
 use Modules\Core\Models\Branch;
 use Modules\Core\Models\Currency;
 use Modules\Core\Models\Sequence;
@@ -20,23 +18,18 @@ use Modules\Core\Sequences\Sequences;
 use Modules\Core\Users\Actions\SaveRole;
 use Modules\Core\Users\Actions\SaveUser;
 use Spatie\Permission\Models\Role;
+use Tests\Concerns\InstallsErp;
 use Tests\TestCase;
 
 class AdminActionsTest extends TestCase
 {
-    use RefreshDatabase;
-
-    private User $admin;
+    use InstallsErp, RefreshDatabase;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->admin = app(InstallErp::class)->handle(new InstallationData(
-            companyName: 'Acme', baseCurrency: 'EGP', locale: 'ar',
-            branchNameAr: 'الرئيسي', branchNameEn: null, branchCode: 'MAIN',
-            adminName: 'Admin', adminEmail: 'admin@example.com', adminPassword: 'password123',
-        ));
+        $this->installErp();
     }
 
     private function assertRejected(callable $action, string $field): void

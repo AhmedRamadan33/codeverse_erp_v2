@@ -2,7 +2,7 @@
 
 namespace Modules\Core\Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Modules\Core\Installation\InstallationData;
 use Modules\Core\Installation\InstallErp;
 use Modules\Core\Models\Currency;
@@ -13,7 +13,12 @@ use Tests\TestCase;
 
 class InstallErpTest extends TestCase
 {
-    use RefreshDatabase;
+    // Needs a database without an installation, unlike the shared seeded one.
+    use DatabaseMigrations;
+
+    protected bool $seed = false;
+
+    protected $seeder = false;
 
     private function data(string $currency = 'SAR'): InstallationData
     {

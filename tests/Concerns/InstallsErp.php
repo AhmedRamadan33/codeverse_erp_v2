@@ -3,13 +3,12 @@
 namespace Tests\Concerns;
 
 use App\Models\User;
-use Modules\Core\Installation\InstallationData;
-use Modules\Core\Installation\InstallErp;
 use Modules\Core\Models\Branch;
+use Tests\Support\InstalledErpSeeder;
 
 /**
- * Runs the real installer, so tests start from what a customer gets: base modules,
- * chart of accounts, mappings, sequences, the current fiscal year, a main branch and an admin.
+ * Gives tests the admin and main branch of the installation that InstalledErpSeeder
+ * creates once per test run (see Tests\TestCase).
  */
 trait InstallsErp
 {
@@ -17,20 +16,9 @@ trait InstallsErp
 
     protected Branch $branch;
 
-    protected function installErp(string $currency = 'EGP', string $locale = 'ar'): void
+    protected function installErp(): void
     {
-        $this->admin = app(InstallErp::class)->handle(new InstallationData(
-            companyName: 'Acme',
-            baseCurrency: $currency,
-            locale: $locale,
-            branchNameAr: 'الفرع الرئيسي',
-            branchNameEn: 'Main branch',
-            branchCode: 'MAIN',
-            adminName: 'Admin',
-            adminEmail: 'admin@example.com',
-            adminPassword: 'password123',
-        ));
-
-        $this->branch = Branch::firstWhere('code', 'MAIN');
+        $this->admin = User::where('email', InstalledErpSeeder::ADMIN_EMAIL)->firstOrFail();
+        $this->branch = Branch::where('code', InstalledErpSeeder::BRANCH_CODE)->firstOrFail();
     }
 }

@@ -36,7 +36,7 @@ class PartnerAuditTest extends TestCase
         $partner = Partner::factory()->create();
         $partner->touch();
 
-        $this->assertSame(1, AuditLog::count());
+        $this->assertSame(1, AuditLog::where('auditable_type', $partner->getMorphClass())->where('auditable_id', $partner->id)->count());
     }
 
     public function test_branch_availability_includes_shared_partners(): void

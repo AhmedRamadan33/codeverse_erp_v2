@@ -2,7 +2,8 @@
 
 namespace Modules\Core\Tests\Feature;
 
-use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Modules\Core\Support\TransactionGuard;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use LogicException;
@@ -16,11 +17,13 @@ use Nwidart\Modules\Laravel\LaravelFileRepository;
 use Tests\TestCase;
 
 /**
- * Uses DatabaseMigrations: enabling a module runs DDL, which commits implicitly on MySQL.
+ * Enabling a module runs DDL, which commits implicitly on MySQL, so these tests cannot run
+ * inside the usual test transaction. They use the shared migrated database without one and
+ * undo what the fixture modules created in tearDown (much faster than re-migrating per test).
  */
 class ModuleManagerTest extends TestCase
 {
-    use DatabaseMigrations;
+    use RefreshDatabase;
 
     private DatabaseActivator $activator;
 
@@ -42,6 +45,25 @@ class ModuleManagerTest extends TestCase
         $this->manager = new ModuleManager($repository, $this->activator, app(PermissionSynchronizer::class));
 
         AlphaInstaller::$upgrades = [];
+        TransactionGuard::$baseline = 0;
+    }
+
+    /**
+     * Migrate (once per run) like RefreshDatabase, but without wrapping the test in a transaction.
+     */
+    public function beginDatabaseTransaction(): void
+    {
+        //
+    }
+
+    protected function tearDown(): void
+    {
+        Schema::dropIfExists('alpha_items');
+        DB::table('migrations')->where('migration', 'like', '%create_alpha_items_table')->delete();
+        InstalledModule::whereIn('name', ['Alpha', 'Beta'])->delete();
+        // test_core_cannot_be_disabled may leave Core untouched; nothing else to undo.
+
+        parent::tearDown();
     }
 
     public function test_enabling_a_module_migrates_it_runs_its_installer_and_records_it(): void

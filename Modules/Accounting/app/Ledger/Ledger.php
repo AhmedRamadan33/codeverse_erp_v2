@@ -85,6 +85,58 @@ class Ledger
     }
 
     /**
+     * Opening balance before $from, then every posted line in the range with a running balance.
+     * Used by the general ledger (per account) and the partner statement (per partner).
+     *
+     * @param  int[]  $accountIds
+     * @return array{opening: BigDecimal, rows: Collection<int, StatementRow>, closing: BigDecimal, debit: BigDecimal, credit: BigDecimal}
+     */
+    public function statement(array $accountIds, DateTimeInterface $from, DateTimeInterface $to, ?int $branchId = null, ?int $partnerId = null): array
+    {
+        $scope = fn (Builder $q) => $q
+            ->whereIn('journal_lines.account_id', $accountIds)
+            ->when($partnerId, fn ($q) => $q->where('journal_lines.partner_id', $partnerId));
+
+        $opening = $this->sum($scope($this->lines(null, null, $branchId)->whereDate('journal_entries.date', '<', $from)));
+
+        $balance = $opening;
+        $debits = BigDecimal::zero();
+        $credits = BigDecimal::zero();
+
+        $rows = $scope($this->lines($from, $to, $branchId))
+            ->leftJoin('partners', 'partners.id', '=', 'journal_lines.partner_id')
+            ->join('accounts', 'accounts.id', '=', 'journal_lines.account_id')
+            ->orderBy('journal_entries.date')->orderBy('journal_entries.id')->orderBy('journal_lines.line_no')
+            ->get([
+                'journal_entries.id as entry_id', 'journal_entries.number', 'journal_entries.date',
+                'journal_entries.description as entry_description', 'journal_entries.source_type', 'journal_entries.source_id',
+                'journal_lines.description', 'journal_lines.debit', 'journal_lines.credit',
+                'partners.name as partner_name', 'accounts.code as account_code',
+            ])
+            ->map(function ($row) use (&$balance, &$debits, &$credits) {
+                $debit = BigDecimal::of($row->debit)->toScale(4);
+                $credit = BigDecimal::of($row->credit)->toScale(4);
+                $balance = $balance->plus($debit)->minus($credit);
+                $debits = $debits->plus($debit);
+                $credits = $credits->plus($credit);
+
+                return new StatementRow(
+                    entryId: $row->entry_id,
+                    number: $row->number,
+                    date: $row->date,
+                    description: $row->description ?? $row->entry_description,
+                    partnerName: $row->partner_name,
+                    accountCode: $row->account_code,
+                    debit: $debit,
+                    credit: $credit,
+                    balance: $balance,
+                );
+            });
+
+        return ['opening' => $opening, 'rows' => $rows, 'closing' => $balance, 'debit' => $debits->toScale(4), 'credit' => $credits->toScale(4)];
+    }
+
+    /**
      * @return int[]
      */
     public function leafIds(Account $account): array

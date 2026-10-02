@@ -44,6 +44,11 @@ class AccountingServiceProvider extends ErpModuleServiceProvider
         $menu->add(new MenuItem('accounting', 'accounting::menu.payments', 'accounting.payments.index', 'bi-box-arrow-up', 'accounting.vouchers.view', 40));
         $menu->add(new MenuItem('accounting', 'accounting::expenses.title', 'accounting.expenses.index', 'bi-receipt', 'accounting.vouchers.view', 50));
 
+        $menu->group('accounting_reports', 'accounting::menu.reports', 'bi-bar-chart', order: 60);
+        $menu->add(new MenuItem('accounting_reports', 'accounting::menu.trial_balance', 'accounting.reports.trial-balance', 'bi-table', 'accounting.reports.view', 10));
+        $menu->add(new MenuItem('accounting_reports', 'accounting::menu.general_ledger', 'accounting.reports.general-ledger', 'bi-book', 'accounting.reports.view', 20));
+        $menu->add(new MenuItem('accounting_reports', 'accounting::menu.partner_statement', 'accounting.reports.partner-statement', 'bi-person-vcard', 'accounting.reports.view', 30));
+
         $menu->group('accounting_settings', 'accounting::menu.accounting_settings', 'bi-sliders', order: 800);
         $menu->add(new MenuItem('accounting_settings', 'accounting::menu.fiscal_years', 'accounting.fiscal-years.index', 'bi-calendar3', 'accounting.fiscal_years.manage', 10));
         $menu->add(new MenuItem('accounting_settings', 'accounting::menu.mappings', 'accounting.mappings.index', 'bi-signpost-split', 'accounting.mappings.manage', 20));

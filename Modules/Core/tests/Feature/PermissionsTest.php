@@ -26,12 +26,12 @@ class PermissionsTest extends TestCase
         $this->assertTrue(Permission::where('name', 'core.partners.create')->exists());
         $this->assertSame(
             count(require module_path('Core', 'config/permissions.php')),
-            Permission::count(),
+            Permission::where('name', 'like', 'core.%')->count(),
         );
 
         // Syncing again is idempotent.
         app(PermissionSynchronizer::class)->sync(Module::find('Core'));
-        $this->assertSame(count(require module_path('Core', 'config/permissions.php')), Permission::count());
+        $this->assertSame(count(require module_path('Core', 'config/permissions.php')), Permission::where('name', 'like', 'core.%')->count());
     }
 
     public function test_a_user_has_only_granted_permissions_and_a_super_admin_has_all(): void
