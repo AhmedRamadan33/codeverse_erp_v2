@@ -24,6 +24,9 @@
                 <strong>{{ $year->name }}</strong>
                 <span class="ms-2 ltr-value text-body-secondary">{{ $year->start_date->toDateString() }} → {{ $year->end_date->toDateString() }}</span>
                 <span @class(['badge ms-auto', 'text-bg-success' => $year->status->value === 'open', 'text-bg-secondary' => $year->status->value !== 'open'])>{{ $year->status->label() }}</span>
+                @if ($year->status->value === 'open')
+                    <button type="button" class="btn btn-sm btn-outline-danger ms-2" wire:click="closeYear({{ $year->id }})" wire:confirm="{{ __('accounting::fiscal.close_year_confirm') }}">{{ __('accounting::fiscal.close_year') }}</button>
+                @endif
             </div>
             <div class="card-body d-flex flex-wrap gap-2">
                 @foreach ($year->periods as $period)

@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Modules\Accounting\Enums\PeriodStatus;
+use Modules\Accounting\FiscalYears\Actions\CloseFiscalYear;
 use Modules\Accounting\FiscalYears\Actions\CreateFiscalYear;
 use Modules\Accounting\FiscalYears\Actions\SetPeriodStatus;
 use Modules\Accounting\Models\FiscalPeriod;
@@ -39,6 +40,12 @@ class Index extends Component
         $status = $period->status === PeriodStatus::Open ? PeriodStatus::Closed : PeriodStatus::Open;
 
         $action->handle(auth()->user(), $period, $status);
+    }
+
+    public function closeYear(int $yearId, CloseFiscalYear $action): void
+    {
+        $action->handle(auth()->user(), FiscalYear::findOrFail($yearId));
+        session()->flash('status', __('core::ui.saved'));
     }
 
     public function saveLockDate(SetPeriodStatus $action): void
