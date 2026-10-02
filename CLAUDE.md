@@ -16,7 +16,7 @@ There are **no production customers**. Design things properly; no backward compa
 
 ## Architecture principles (agreed)
 1. **Each module owns its data.** Each module owns its models, migrations, routes, views, permissions and tests. Modules may depend on each other: a module may **read** another module's tables/models and add **foreign keys** to them (declare the dependency in `module.json` `requires`). But only the owning module **writes** to its tables: other modules change its data by calling its actions or firing events it listens to (e.g. Sales calls Inventory's `issueStock`, never updates stock tables directly). This keeps each module's business rules (costing, batches, locking, accounting entries) in one place.
-2. **Modules communicate through events**, not direct calls (e.g. Sales fires `InvoicePosted`; Accounting and Inventory listen). Disabling a module must not break the others.
+2. **Calls vs events.** A module may call actions of modules it `requires` (hard dependency, e.g. Sales → Inventory). For optional reactions, it fires events and lets other modules listen (e.g. Sales fires `InvoicePosted`; Accounting, EgyptTax and Notifications listen). Disabling a module must not break modules that don't require it.
 3. **Double-entry accounting is the core.** Every financial document posts a journal entry. Balances are derived from journal lines, never updated by hand.
 4. **Money is `decimal`, never `float`.** Use `decimal(18,4)` for amounts and quantities.
 5. **One table per document type** (sales invoices, purchase invoices, stock moves, journal entries, …). No single catch-all `transactions` table.
