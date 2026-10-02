@@ -1,0 +1,24 @@
+/* Shared overrides for both directions. Keep direction-specific rules out of here. */
+:root {
+    --bs-body-font-family: 'Cairo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.app-content-header h1 {
+    font-size: 1.4rem;
+    margin: 0;
+}
+
+.table td,
+.table th {
+    vertical-align: middle;
+}
+
+/* Amounts and codes keep left-to-right digits inside RTL pages. */
+.ltr-value {
+    direction: ltr;
+    unicode-bidi: embed;
+}
+
+.login-page {
+    min-height: 100vh;
+}

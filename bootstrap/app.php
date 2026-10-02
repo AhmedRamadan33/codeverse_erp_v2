@@ -13,7 +13,15 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->web(append: [
+            Modules\Core\Http\Middleware\SetLocale::class,
+            Modules\Core\Http\Middleware\EnsureUserIsActive::class,
+        ]);
+        $middleware->api(append: [
+            Modules\Core\Http\Middleware\SetLocale::class,
+        ]);
+        $middleware->redirectGuestsTo(fn () => route('login'));
+        $middleware->redirectUsersTo(fn () => route('core.dashboard'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -2,6 +2,7 @@
 
 namespace Modules\Core\Models;
 
+use App\Models\User;
 use Brick\Math\BigDecimal;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -77,6 +78,21 @@ class Partner extends Model
     public function scopeAvailableIn(Builder $query, int $branchId): void
     {
         $query->where(fn ($q) => $q->whereNull('branch_id')->orWhere('branch_id', $branchId));
+    }
+
+    /**
+     * Partners the user may see: shared ones plus those of the user's branches.
+     *
+     * @param  Builder<self>  $query
+     */
+    public function scopeVisibleTo(Builder $query, User $user): void
+    {
+        if ($user->can('core.branches.all_access')) {
+            return;
+        }
+
+        $query->where(fn ($q) => $q->whereNull('branch_id')
+            ->orWhereIn('branch_id', $user->branches()->select('branches.id')));
     }
 
     protected static function newFactory(): PartnerFactory
