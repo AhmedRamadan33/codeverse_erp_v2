@@ -167,6 +167,8 @@ Line amounts are computed in this order. All values are stored on the line.
 
 Header `discount_total` = Σ (line_discount + document_discount). Revenue is posted at `net`, so no separate "discount allowed" account is needed. Reports read the discount columns on the lines.
 
+Implemented once in `AccountingPricingDocumentTotals` (a module API), shared by purchases and sales. Each document line stores gross, discounts, net, tax and total, plus the tax rate, as computed when saved.
+
 ### 5.2 Credit limit
 - The setting `sales.credit_limit_mode` is `block` / `warn` / `off`. The default is `warn`.
 - The check runs when posting a credit (non-cash) sale for a partner with a `credit_limit`. It fails when the partner's receivable balance (Σ journal lines) plus the new invoice total exceeds the limit.
@@ -277,7 +279,7 @@ account_id
   | `scope` | `sales` / `purchases` / `both` |
   | `included_in_price` | bool |
   | `account mappings` | Two mapping keys, scoped to the tax: `tax.output` and `tax.input`. |
-  | `is_active` | |
+- **v1.0:** one tax per document line, stored with its rate. Several taxes per line (e.g. VAT 14% plus table tax) come with EgyptTax, through a line-taxes table.
 
 - The `tax_line` link is many-to-many: a document line can carry several taxes, e.g. VAT 14% plus table tax.
 - EgyptTax adds ETA tax-type and sub-type codes in its own table that references `taxes`. Accounting knows nothing about ETA.
