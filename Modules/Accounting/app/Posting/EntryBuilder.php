@@ -1,13 +1,15 @@
 <?php
 
-namespace Modules\Purchases\Posting;
+namespace Modules\Accounting\Posting;
 
 use Brick\Math\BigDecimal;
-use Modules\Accounting\Posting\JournalLineData;
+use Modules\Core\Support\Attributes\ModuleApi;
 
 /**
  * Collects amounts per account and side, then produces journal lines (one per account and side).
+ * A negative amount moves to the other side.
  */
+#[ModuleApi]
 class EntryBuilder
 {
     /** @var array<string, array{account: int, side: string, amount: BigDecimal, currency: BigDecimal, partner: ?int, due: mixed}> */

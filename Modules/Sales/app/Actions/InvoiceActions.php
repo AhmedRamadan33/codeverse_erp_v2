@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Purchases\Actions;
+namespace Modules\Sales\Actions;
 
 use App\Models\User;
 use Brick\Math\BigDecimal;
@@ -14,12 +14,16 @@ use Modules\Accounting\Enums\JournalType;
 use Modules\Accounting\Mappings\AccountResolver;
 use Modules\Accounting\Models\Reconciliation;
 use Modules\Accounting\Models\Tax;
+use Modules\Accounting\Posting\EntryBuilder;
 use Modules\Accounting\Posting\JournalEntryData;
 use Modules\Accounting\Posting\PostJournalEntry;
 use Modules\Accounting\Posting\ReverseJournalEntry;
 use Modules\Accounting\Pricing\Discount;
 use Modules\Accounting\Pricing\DocumentTotals;
 use Modules\Accounting\Pricing\PricedLine;
+use Modules\Accounting\Vouchers\Actions\PostVoucher;
+use Modules\Accounting\Vouchers\Actions\SaveVoucher;
+use Modules\Accounting\Vouchers\VoucherKind;
 use Modules\Core\Currencies\Currencies;
 use Modules\Core\Documents\DocumentStatus;
 use Modules\Core\Models\Currency;
@@ -27,32 +31,36 @@ use Modules\Core\Models\Partner;
 use Modules\Core\Sequences\NextNumber;
 use Modules\Inventory\Enums\StockMoveType;
 use Modules\Inventory\Models\Warehouse;
-use Modules\Inventory\Stock\Actions\ReceiveStock;
+use Modules\Inventory\Stock\Actions\IssueStock;
 use Modules\Inventory\Stock\Actions\ReverseStock;
 use Modules\Inventory\Stock\StockLineData;
 use Modules\Inventory\Stock\StockOperationData;
 use Modules\Products\Models\Product;
 use Modules\Products\Support\UnitConverter;
-use Modules\Purchases\Models\PurchaseInvoice;
-use Modules\Purchases\Models\PurchaseInvoiceLine;
-use Modules\Accounting\Posting\EntryBuilder;
+use Modules\Sales\Models\SalesInvoice;
+use Modules\Sales\Pricing\CreditLimit;
+use Modules\Sales\Pricing\PriceResolver;
 
 /**
- * Purchase invoices (core-design.md §7): Dr GRNI (stock items) or purchases expense (others),
- * Dr input tax, Cr the supplier; Inventory receives the stock at the same net cost
- * (Dr inventory / Cr GRNI), so GRNI nets to zero.
+ * Sales invoices (core-design.md §7): Dr customer (with due date) / Cr revenue / Cr output tax;
+ * Inventory issues the stock at average cost (Dr COGS / Cr inventory). A payment taken at
+ * posting becomes a receipt voucher allocated to the invoice.
  */
 class InvoiceActions
 {
     public function __construct(
         private readonly DocumentTotals $totals,
         private readonly UnitConverter $converter,
+        private readonly PriceResolver $prices,
+        private readonly CreditLimit $creditLimit,
         private readonly Currencies $currencies,
         private readonly AccountResolver $accounts,
         private readonly PostJournalEntry $postEntry,
         private readonly ReverseJournalEntry $reverseEntry,
-        private readonly ReceiveStock $receiveStock,
+        private readonly IssueStock $issueStock,
         private readonly ReverseStock $reverseStock,
+        private readonly SaveVoucher $saveVoucher,
+        private readonly PostVoucher $postVoucher,
         private readonly NextNumber $numbers,
     ) {}
 
@@ -64,25 +72,27 @@ class InvoiceActions
         return [
             'date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:date'],
-            'partner_id' => ['required', 'integer', Rule::exists('partners', 'id')->where('is_supplier', true)->where('is_active', true)],
-            'supplier_reference' => ['nullable', 'string', 'max:64'],
+            'partner_id' => ['required', 'integer', Rule::exists('partners', 'id')->where('is_customer', true)->where('is_active', true)],
             'warehouse_id' => ['required', 'integer', Rule::exists('warehouses', 'id')->where('is_active', true)],
             'currency_id' => ['required', 'integer', Rule::exists('currencies', 'id')->where('is_active', true)],
             'exchange_rate' => ['nullable', 'decimal:0,6', 'gt:0'],
+            'price_list_id' => ['nullable', 'integer', Rule::exists('price_lists', 'id')->where('is_active', true)],
             'discount_type' => ['nullable', Rule::in(['percent', 'amount'])],
             'discount_value' => ['nullable', 'decimal:0,4', 'min:0'],
+            'payment_method_id' => ['nullable', 'required_with:paid_amount', 'integer', Rule::exists('payment_methods', 'id')->where('is_active', true)],
+            'paid_amount' => ['nullable', 'decimal:0,4', 'min:0'],
             'description' => ['nullable', 'string', 'max:255'],
             'lines' => ['required', 'array', 'min:1', 'max:500'],
-            'lines.*.product_id' => ['required', 'integer', Rule::exists('products', 'id')],
+            'lines.*.product_id' => ['required', 'integer', Rule::exists('products', 'id')->where('is_active', true)],
             'lines.*.unit_id' => ['required', 'integer'],
             'lines.*.description' => ['nullable', 'string', 'max:255'],
             'lines.*.quantity' => ['required', 'decimal:0,4', 'gt:0', 'max:99999999999'],
-            'lines.*.unit_price' => ['required', 'decimal:0,4', 'min:0', 'max:99999999999999'],
+            // Empty = the price list / product price.
+            'lines.*.unit_price' => ['nullable', 'decimal:0,4', 'min:0', 'max:99999999999999'],
             'lines.*.discount_type' => ['nullable', Rule::in(['percent', 'amount'])],
             'lines.*.discount_value' => ['nullable', 'decimal:0,4', 'min:0'],
             'lines.*.tax_id' => ['nullable', 'integer', Rule::exists('taxes', 'id')->where('is_active', true)],
             'lines.*.batch_number' => ['nullable', 'string', 'max:64'],
-            'lines.*.expiry_date' => ['nullable', 'date'],
             'lines.*.serials' => ['nullable', 'array'],
             'lines.*.serials.*' => ['string', 'max:128'],
         ];
@@ -91,9 +101,9 @@ class InvoiceActions
     /**
      * @param  array<string, mixed>  $data  validated against rules()
      */
-    public function save(User $actor, array $data, ?PurchaseInvoice $invoice = null): PurchaseInvoice
+    public function save(User $actor, array $data, ?SalesInvoice $invoice = null): SalesInvoice
     {
-        Gate::forUser($actor)->authorize('purchases.invoices.create');
+        Gate::forUser($actor)->authorize('sales.invoices.create');
 
         if ($invoice && $invoice->status !== DocumentStatus::Draft) {
             throw ValidationException::withMessages(['invoice' => __('core::documents.not_draft')]);
@@ -101,11 +111,11 @@ class InvoiceActions
 
         $warehouse = Warehouse::findOrFail($data['warehouse_id']);
         if (! $actor->canAccessBranch($warehouse->branch_id)) {
-            throw ValidationException::withMessages(['warehouse_id' => __('purchases::invoices.warehouse_not_allowed')]);
+            throw ValidationException::withMessages(['warehouse_id' => __('sales::invoices.warehouse_not_allowed')]);
         }
 
-        Partner::visibleTo($actor)->find($data['partner_id'])
-            ?? throw ValidationException::withMessages(['partner_id' => __('purchases::invoices.supplier_not_allowed')]);
+        $customer = Partner::visibleTo($actor)->find($data['partner_id'])
+            ?? throw ValidationException::withMessages(['partner_id' => __('sales::invoices.customer_not_allowed')]);
 
         $currency = Currency::findOrFail($data['currency_id']);
         $isBase = $this->currencies->isBase($currency);
@@ -113,34 +123,46 @@ class InvoiceActions
             throw ValidationException::withMessages(['exchange_rate' => __('accounting::vouchers.rate_required')]);
         }
 
+        $priceListId = $data['price_list_id'] ?? $this->prices->priceListFor($customer->id);
         $lines = array_values($data['lines']);
         $products = Product::with('units')->whereKey(array_column($lines, 'product_id'))->get()->keyBy('id');
         $taxes = Tax::whereKey(array_filter(array_column($lines, 'tax_id')))->get()->keyBy('id');
 
-        $priced = array_map(fn ($line) => new PricedLine(
+        foreach ($lines as &$line) {
+            if (($line['unit_price'] ?? '') === '' || $line['unit_price'] === null) {
+                $line['unit_price'] = (string) $this->prices->price($products[$line['product_id']], (int) $line['unit_id'], $priceListId);
+            }
+        }
+        unset($line);
+
+        $result = $this->totals->calculate(array_map(fn ($line) => new PricedLine(
             (string) $line['quantity'],
             (string) $line['unit_price'],
             Discount::fromInput($line['discount_type'] ?? null, $line['discount_value'] ?? null),
             ! empty($line['tax_id']) ? $taxes[$line['tax_id']] : null,
-        ), $lines);
+        ), $lines), $currency->decimal_places, Discount::fromInput($data['discount_type'] ?? null, $data['discount_value'] ?? null));
 
-        $result = $this->totals->calculate($priced, $currency->decimal_places, Discount::fromInput($data['discount_type'] ?? null, $data['discount_value'] ?? null));
+        $paid = ($data['paid_amount'] ?? '') === '' ? null : BigDecimal::of((string) $data['paid_amount']);
+        if ($paid && $paid->isGreaterThan($result->total())) {
+            throw ValidationException::withMessages(['paid_amount' => __('sales::invoices.paid_more_than_total')]);
+        }
 
-        return DB::transaction(function () use ($actor, $data, $invoice, $warehouse, $isBase, $lines, $products, $taxes, $result) {
-            $invoice ??= new PurchaseInvoice(['status' => DocumentStatus::Draft, 'created_by' => $actor->id]);
-            $partner = Partner::find($data['partner_id']);
+        return DB::transaction(function () use ($actor, $data, $invoice, $warehouse, $customer, $isBase, $priceListId, $lines, $products, $taxes, $result, $paid) {
+            $invoice ??= new SalesInvoice(['status' => DocumentStatus::Draft, 'created_by' => $actor->id]);
 
             $invoice->fill([
                 'date' => $data['date'],
-                'due_date' => $data['due_date'] ?? CarbonImmutable::parse($data['date'])->addDays($partner->payment_term_days)->toDateString(),
-                'partner_id' => $partner->id,
-                'supplier_reference' => $data['supplier_reference'] ?? null,
+                'due_date' => $data['due_date'] ?? CarbonImmutable::parse($data['date'])->addDays($customer->payment_term_days)->toDateString(),
+                'partner_id' => $customer->id,
                 'branch_id' => $warehouse->branch_id,
                 'warehouse_id' => $warehouse->id,
                 'currency_id' => $data['currency_id'],
                 'exchange_rate' => $isBase ? '1' : BigDecimal::of((string) $data['exchange_rate'])->toScale(6),
+                'price_list_id' => $priceListId,
                 'discount_type' => ($data['discount_value'] ?? '') !== '' ? ($data['discount_type'] ?? 'amount') : null,
                 'discount_value' => ($data['discount_value'] ?? '') !== '' ? (string) $data['discount_value'] : null,
+                'payment_method_id' => $paid && $paid->isPositive() ? $data['payment_method_id'] : null,
+                'paid_amount' => $paid && $paid->isPositive() ? $paid->toScale(4) : null,
                 'subtotal' => $result->subtotal()->toScale(4),
                 'discount_total' => $result->discountTotal()->toScale(4),
                 'tax_total' => $result->taxTotal()->toScale(4),
@@ -174,7 +196,6 @@ class InvoiceActions
                     'tax_amount' => $totals->tax->toScale(4),
                     'line_total' => $totals->total->toScale(4),
                     'batch_number' => $line['batch_number'] ?? null,
-                    'expiry_date' => $line['expiry_date'] ?? null,
                     'serials' => array_values(array_filter($line['serials'] ?? [])) ?: null,
                 ]);
             }
@@ -183,12 +204,15 @@ class InvoiceActions
         });
     }
 
-    public function post(User $actor, PurchaseInvoice $invoice): PurchaseInvoice
+    /**
+     * @param  bool  $confirmOverLimit  the user confirmed posting past the customer's credit limit
+     */
+    public function post(User $actor, SalesInvoice $invoice, bool $confirmOverLimit = false): SalesInvoice
     {
-        Gate::forUser($actor)->authorize('purchases.invoices.post');
+        Gate::forUser($actor)->authorize('sales.invoices.post');
 
-        return DB::transaction(function () use ($actor, $invoice) {
-            $invoice = PurchaseInvoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+        return DB::transaction(function () use ($actor, $invoice, $confirmOverLimit) {
+            $invoice = SalesInvoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
 
             if ($invoice->status !== DocumentStatus::Draft) {
                 throw ValidationException::withMessages(['invoice' => __('core::documents.not_draft')]);
@@ -199,64 +223,59 @@ class InvoiceActions
             $isForeign = $invoice->currency_id !== $base->id;
             $toBase = fn (BigDecimal $amount) => $amount->multipliedBy($invoice->exchange_rate)->toScale($base->decimal_places, RoundingMode::HalfUp);
 
+            // Lock the customer so two invoices posted at once cannot both pass the credit limit.
+            Partner::whereKey($invoice->partner_id)->lockForUpdate()->first();
+            $this->creditLimit->check($actor, $invoice->partner, $toBase($invoice->total->minus($invoice->paid_amount ?? BigDecimal::zero())), $invoice->branch_id, $confirmOverLimit);
+
+            $description = __('sales::invoices.entry_description', ['customer' => $invoice->partner->name]);
+            $stockLines = $invoice->lines->filter(fn ($l) => $l->product->tracksStock())->values();
+
+            if ($stockLines->isNotEmpty()) {
+                $result = $this->issueStock->handle(new StockOperationData(
+                    date: $invoice->date,
+                    branchId: $invoice->branch_id,
+                    type: StockMoveType::Sale,
+                    source: $invoice,
+                    lines: $stockLines->map(fn ($l) => new StockLineData(
+                        productId: $l->product_id,
+                        warehouseId: $invoice->warehouse_id,
+                        quantity: $l->base_quantity,
+                        batchNumber: $l->batch_number,
+                        serials: $l->serials ?? [],
+                        sourceLine: $l,
+                    ))->all(),
+                    counterAccountKey: 'inventory.cogs',
+                    counterScopes: [$invoice->partner],
+                    description: $description,
+                    postedBy: $actor,
+                ));
+
+                foreach ($stockLines as $i => $line) {
+                    $line->update(['cost' => $result->lineCost($i)]);
+                }
+            }
+
             $entry = new EntryBuilder($isForeign ? $invoice->currency_id : null);
-            $stockLines = [];
             $docTotal = BigDecimal::zero();
 
             foreach ($invoice->lines as $line) {
                 $product = $line->product;
-                $net = $toBase($line->net);
-                $scopes = [$product, $product->category, $invoice->partner, $invoice->warehouse];
-
-                if ($product->tracksStock()) {
-                    $entry->debit($this->accounts->resolve('purchases.grni', $scopes)->id, $net, $line->net);
-                    $stockLines[] = new StockLineData(
-                        productId: $product->id,
-                        warehouseId: $invoice->warehouse_id,
-                        quantity: $line->base_quantity,
-                        batchNumber: $line->batch_number,
-                        expiryDate: $line->expiry_date,
-                        serials: $line->serials ?? [],
-                        sourceLine: $line,
-                        totalCost: $net,
-                    );
-                } else {
-                    $entry->debit($this->accounts->resolve('purchases.expense', [$product, $product->category, $invoice->branch])->id, $net, $line->net);
-                }
+                $entry->credit($this->accounts->resolve('sales.revenue', [$product, $product->category, $invoice->partner, $invoice->branch])->id, $toBase($line->net), $line->net);
 
                 if ($line->tax_amount->isPositive()) {
-                    $entry->debit($this->accounts->resolve('tax.input', [$line->tax, $invoice->branch])->id, $toBase($line->tax_amount), $line->tax_amount);
+                    $entry->credit($this->accounts->resolve('tax.output', [$line->tax, $invoice->branch])->id, $toBase($line->tax_amount), $line->tax_amount);
                 }
 
                 $docTotal = $docTotal->plus($line->line_total);
             }
 
-            // The supplier is owed the sum of the converted lines, so the entry always balances.
-            $entry->credit(
-                $this->accounts->resolve('purchases.payable', [$invoice->partner, $invoice->branch])->id,
-                $entry->totalDebit(), $docTotal, $invoice->partner_id, $invoice->due_date,
-            );
+            $receivable = $this->accounts->resolve('sales.receivable', [$invoice->partner, $invoice->branch]);
+            $entry->debit($receivable->id, $entry->totalCredit(), $docTotal, $invoice->partner_id, $invoice->due_date);
 
-            $description = __('purchases::invoices.entry_description', ['supplier' => $invoice->partner->name, 'reference' => $invoice->supplier_reference]);
-
-            if ($stockLines !== []) {
-                $this->receiveStock->handle(new StockOperationData(
-                    date: $invoice->date,
-                    branchId: $invoice->branch_id,
-                    type: StockMoveType::Purchase,
-                    source: $invoice,
-                    lines: $stockLines,
-                    counterAccountKey: 'purchases.grni',
-                    counterScopes: [$invoice->partner],
-                    description: $description,
-                    postedBy: $actor,
-                ));
-            }
-
-            $journal = $entry->totalDebit()->isZero() ? null : $this->postEntry->handle(new JournalEntryData(
+            $journal = $entry->totalCredit()->isZero() ? null : $this->postEntry->handle(new JournalEntryData(
                 date: $invoice->date,
                 branchId: $invoice->branch_id,
-                journalType: JournalType::Purchases,
+                journalType: JournalType::Sales,
                 lines: $entry->lines(),
                 description: $description,
                 source: $invoice,
@@ -266,33 +285,60 @@ class InvoiceActions
             $invoice->update([
                 'status' => DocumentStatus::Posted,
                 'journal_entry_id' => $journal?->id,
-                'number' => $this->numbers->handle(PurchaseInvoice::SEQUENCE, $invoice->branch_id, $invoice->date),
+                'number' => $this->numbers->handle(SalesInvoice::SEQUENCE, $invoice->branch_id, $invoice->date),
                 'posted_by' => $actor->id,
                 'posted_at' => now(),
             ]);
+
+            if ($journal && $invoice->paid_amount?->isPositive()) {
+                $this->collectPayment($actor, $invoice, $journal->lines()->where('account_id', $receivable->id)->where('debit', '>', 0)->firstOrFail()->id);
+            }
 
             return $invoice;
         });
     }
 
-    public function cancel(User $actor, PurchaseInvoice $invoice, string $reason): PurchaseInvoice
+    /**
+     * Payment taken at the counter: a receipt voucher allocated to this invoice.
+     */
+    private function collectPayment(User $actor, SalesInvoice $invoice, int $receivableLineId): void
     {
-        Gate::forUser($actor)->authorize('purchases.invoices.cancel');
+        $voucher = $this->saveVoucher->handle($actor, VoucherKind::Receipt, [
+            'date' => $invoice->date->toDateString(),
+            'branch_id' => $invoice->branch_id,
+            'partner_id' => $invoice->partner_id,
+            'payment_method_id' => $invoice->payment_method_id,
+            'currency_id' => $invoice->currency_id,
+            'exchange_rate' => (string) $invoice->exchange_rate,
+            'amount' => (string) $invoice->paid_amount->toScale($invoice->currency->decimal_places),
+            'reference' => $invoice->number,
+            'description' => __('sales::invoices.payment_description', ['number' => $invoice->number]),
+        ]);
+
+        $base = $this->currencies->base();
+        $allocation = $invoice->paid_amount->multipliedBy($invoice->exchange_rate)->toScale($base->decimal_places, RoundingMode::HalfUp);
+
+        $this->postVoucher->handle($actor, $voucher, [$receivableLineId => (string) $allocation]);
+    }
+
+    public function cancel(User $actor, SalesInvoice $invoice, string $reason): SalesInvoice
+    {
+        Gate::forUser($actor)->authorize('sales.invoices.cancel');
 
         return DB::transaction(function () use ($actor, $invoice, $reason) {
-            $invoice = PurchaseInvoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+            $invoice = SalesInvoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
 
             if ($invoice->status !== DocumentStatus::Posted) {
                 throw ValidationException::withMessages(['invoice' => __('core::documents.not_posted')]);
             }
 
             if ($invoice->returns()->where('status', '!=', DocumentStatus::Cancelled)->exists()) {
-                throw ValidationException::withMessages(['invoice' => __('purchases::invoices.has_returns')]);
+                throw ValidationException::withMessages(['invoice' => __('sales::invoices.has_returns')]);
             }
 
-            $payableLines = $invoice->journalEntry?->lines()->where('partner_id', $invoice->partner_id)->pluck('id') ?? collect();
-            if (Reconciliation::whereIn('credit_line_id', $payableLines)->exists()) {
-                throw ValidationException::withMessages(['invoice' => __('purchases::invoices.has_payments')]);
+            $receivableLines = $invoice->journalEntry?->lines()->where('partner_id', $invoice->partner_id)->pluck('id') ?? collect();
+            if (Reconciliation::whereIn('debit_line_id', $receivableLines)->exists()) {
+                throw ValidationException::withMessages(['invoice' => __('sales::invoices.has_payments')]);
             }
 
             $date = CarbonImmutable::today()->max($invoice->date);
@@ -308,9 +354,9 @@ class InvoiceActions
         });
     }
 
-    public function delete(User $actor, PurchaseInvoice $invoice): void
+    public function delete(User $actor, SalesInvoice $invoice): void
     {
-        Gate::forUser($actor)->authorize('purchases.invoices.create');
+        Gate::forUser($actor)->authorize('sales.invoices.create');
 
         if ($invoice->status !== DocumentStatus::Draft) {
             throw ValidationException::withMessages(['invoice' => __('core::documents.not_draft')]);

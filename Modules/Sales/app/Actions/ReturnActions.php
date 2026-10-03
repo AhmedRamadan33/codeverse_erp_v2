@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\Purchases\Actions;
+namespace Modules\Sales\Actions;
 
 use App\Models\User;
 use Brick\Math\BigDecimal;
@@ -13,6 +13,7 @@ use Illuminate\Validation\ValidationException;
 use Modules\Accounting\Enums\JournalType;
 use Modules\Accounting\Mappings\AccountResolver;
 use Modules\Accounting\Models\JournalLine;
+use Modules\Accounting\Posting\EntryBuilder;
 use Modules\Accounting\Posting\JournalEntryData;
 use Modules\Accounting\Posting\PostJournalEntry;
 use Modules\Accounting\Posting\ReverseJournalEntry;
@@ -21,19 +22,18 @@ use Modules\Core\Currencies\Currencies;
 use Modules\Core\Documents\DocumentStatus;
 use Modules\Core\Sequences\NextNumber;
 use Modules\Inventory\Enums\StockMoveType;
-use Modules\Inventory\Stock\Actions\IssueStock;
+use Modules\Inventory\Stock\Actions\ReceiveStock;
 use Modules\Inventory\Stock\Actions\ReverseStock;
 use Modules\Inventory\Stock\StockLineData;
 use Modules\Inventory\Stock\StockOperationData;
-use Modules\Purchases\Models\PurchaseInvoice;
-use Modules\Purchases\Models\PurchaseInvoiceLine;
-use Modules\Purchases\Models\PurchaseReturn;
-use Modules\Accounting\Posting\EntryBuilder;
+use Modules\Sales\Models\SalesInvoice;
+use Modules\Sales\Models\SalesInvoiceLine;
+use Modules\Sales\Models\SalesReturn;
 
 /**
- * Goods sent back to the supplier, always against a posted invoice.
- * Dr supplier / Cr GRNI (at the stock cost that left) / Cr input tax; the difference between
- * the invoice price and the stock cost goes to inventory price differences (core-design.md §7).
+ * Goods a customer brings back, always against a posted invoice.
+ * Dr sales returns / Dr output tax / Cr customer; stock comes back at its original issue
+ * cost (Dr inventory / Cr COGS), so the sale's margin is undone exactly.
  */
 class ReturnActions
 {
@@ -42,7 +42,7 @@ class ReturnActions
         private readonly AccountResolver $accounts,
         private readonly PostJournalEntry $postEntry,
         private readonly ReverseJournalEntry $reverseEntry,
-        private readonly IssueStock $issueStock,
+        private readonly ReceiveStock $receiveStock,
         private readonly ReverseStock $reverseStock,
         private readonly Reconciler $reconciler,
         private readonly NextNumber $numbers,
@@ -57,7 +57,7 @@ class ReturnActions
             'date' => ['required', 'date'],
             'description' => ['nullable', 'string', 'max:255'],
             'lines' => ['required', 'array', 'min:1'],
-            'lines.*.purchase_invoice_line_id' => ['required', 'integer', 'distinct', Rule::exists('purchase_invoice_lines', 'id')],
+            'lines.*.sales_invoice_line_id' => ['required', 'integer', 'distinct', Rule::exists('sales_invoice_lines', 'id')],
             'lines.*.quantity' => ['required', 'decimal:0,4', 'gt:0'],
             'lines.*.serials' => ['nullable', 'array'],
             'lines.*.serials.*' => ['string', 'max:128'],
@@ -67,12 +67,12 @@ class ReturnActions
     /**
      * @param  array<string, mixed>  $data  validated against rules()
      */
-    public function save(User $actor, PurchaseInvoice $invoice, array $data, ?PurchaseReturn $return = null): PurchaseReturn
+    public function save(User $actor, SalesInvoice $invoice, array $data, ?SalesReturn $return = null): SalesReturn
     {
-        Gate::forUser($actor)->authorize('purchases.returns.create');
+        Gate::forUser($actor)->authorize('sales.returns.create');
 
         if ($invoice->status !== DocumentStatus::Posted) {
-            throw ValidationException::withMessages(['invoice' => __('purchases::returns.invoice_not_posted')]);
+            throw ValidationException::withMessages(['invoice' => __('sales::returns.invoice_not_posted')]);
         }
 
         if ($return && $return->status !== DocumentStatus::Draft) {
@@ -80,7 +80,7 @@ class ReturnActions
         }
 
         if (CarbonImmutable::parse($data['date'])->lt($invoice->date)) {
-            throw ValidationException::withMessages(['date' => __('purchases::returns.before_invoice')]);
+            throw ValidationException::withMessages(['date' => __('sales::returns.before_invoice')]);
         }
 
         $invoiceLines = $invoice->lines()->get()->keyBy('id');
@@ -88,39 +88,43 @@ class ReturnActions
         $rows = [];
 
         foreach (array_values($data['lines']) as $i => $input) {
-            /** @var PurchaseInvoiceLine|null $line */
-            $line = $invoiceLines[$input['purchase_invoice_line_id']] ?? null;
+            /** @var SalesInvoiceLine|null $line */
+            $line = $invoiceLines[$input['sales_invoice_line_id']] ?? null;
             if ($line === null) {
-                throw ValidationException::withMessages(["lines.{$i}.purchase_invoice_line_id" => __('purchases::returns.line_not_on_invoice')]);
+                throw ValidationException::withMessages(["lines.{$i}.sales_invoice_line_id" => __('sales::returns.line_not_on_invoice')]);
             }
 
             $quantity = BigDecimal::of((string) $input['quantity'])->toScale(4);
             $returnable = $line->returnableQuantity($return?->id);
 
             if ($quantity->isGreaterThan($returnable)) {
-                throw ValidationException::withMessages(["lines.{$i}.quantity" => __('purchases::returns.too_much', [
+                throw ValidationException::withMessages(["lines.{$i}.quantity" => __('sales::returns.too_much', [
                     'product' => $line->product->name, 'returnable' => (string) $returnable->strippedOfTrailingZeros(),
                 ])]);
             }
 
-            // The last return of a line takes exactly what is left of its amounts.
+            $share = fn (BigDecimal $amount, int $s) => $amount->multipliedBy($quantity)->dividedBy($line->quantity, $s, RoundingMode::HalfUp);
+
             if ($quantity->isEqualTo($returnable)) {
-                $done = $line->returnLines()->whereHas('purchaseReturn', fn ($q) => $q->where('status', '!=', DocumentStatus::Cancelled)
+                // The last return of a line takes exactly what is left.
+                $done = $line->returnLines()->whereHas('salesReturn', fn ($q) => $q->where('status', '!=', DocumentStatus::Cancelled)
                     ->when($return, fn ($q) => $q->whereKeyNot($return->id)));
-                $net = $line->net->minus(BigDecimal::of($done->sum('net') ?: 0));
+                $net = $line->net->minus(BigDecimal::of((clone $done)->sum('net') ?: 0));
                 $tax = $line->tax_amount->minus(BigDecimal::of((clone $done)->sum('tax_amount') ?: 0));
+                $cost = $line->cost?->minus(BigDecimal::of((clone $done)->sum('cost') ?: 0));
             } else {
-                $net = $line->net->multipliedBy($quantity)->dividedBy($line->quantity, $scale, RoundingMode::HalfUp);
-                $tax = $line->tax_amount->multipliedBy($quantity)->dividedBy($line->quantity, $scale, RoundingMode::HalfUp);
+                $net = $share($line->net, $scale);
+                $tax = $share($line->tax_amount, $scale);
+                $cost = $line->cost ? $share($line->cost, 4) : null;
             }
 
             $rows[] = [
                 'line_no' => $i + 1,
-                'purchase_invoice_line_id' => $line->id,
+                'sales_invoice_line_id' => $line->id,
                 'product_id' => $line->product_id,
                 'unit_id' => $line->unit_id,
                 'quantity' => $quantity,
-                'base_quantity' => $line->base_quantity->multipliedBy($quantity)->dividedBy($line->quantity, 4, RoundingMode::HalfUp),
+                'base_quantity' => $share($line->base_quantity, 4),
                 'net' => $net->toScale(4),
                 'tax_id' => $line->tax_id,
                 'tax_rate' => $line->tax_rate,
@@ -128,15 +132,16 @@ class ReturnActions
                 'line_total' => $net->plus($tax)->toScale(4),
                 'batch_number' => $line->batch_number,
                 'serials' => array_values(array_filter($input['serials'] ?? [])) ?: null,
+                'cost' => $cost?->toScale(4),
             ];
         }
 
         return DB::transaction(function () use ($actor, $invoice, $data, $return, $rows) {
             $sum = fn (string $key) => array_reduce($rows, fn (BigDecimal $c, $r) => $c->plus($r[$key]), BigDecimal::zero());
 
-            $return ??= new PurchaseReturn(['status' => DocumentStatus::Draft, 'created_by' => $actor->id]);
+            $return ??= new SalesReturn(['status' => DocumentStatus::Draft, 'created_by' => $actor->id]);
             $return->fill([
-                'purchase_invoice_id' => $invoice->id,
+                'sales_invoice_id' => $invoice->id,
                 'date' => $data['date'],
                 'branch_id' => $invoice->branch_id,
                 'warehouse_id' => $invoice->warehouse_id,
@@ -157,12 +162,12 @@ class ReturnActions
         });
     }
 
-    public function post(User $actor, PurchaseReturn $return): PurchaseReturn
+    public function post(User $actor, SalesReturn $return): SalesReturn
     {
-        Gate::forUser($actor)->authorize('purchases.returns.post');
+        Gate::forUser($actor)->authorize('sales.returns.post');
 
         return DB::transaction(function () use ($actor, $return) {
-            $return = PurchaseReturn::whereKey($return->id)->lockForUpdate()->firstOrFail();
+            $return = SalesReturn::whereKey($return->id)->lockForUpdate()->firstOrFail();
 
             if ($return->status !== DocumentStatus::Draft) {
                 throw ValidationException::withMessages(['return' => __('core::documents.not_draft')]);
@@ -172,16 +177,15 @@ class ReturnActions
             $base = $this->currencies->base();
             $isForeign = $return->currency_id !== $base->id;
             $toBase = fn (BigDecimal $amount) => $amount->multipliedBy($return->exchange_rate)->toScale($base->decimal_places, RoundingMode::HalfUp);
-            $description = __('purchases::returns.entry_description', ['supplier' => $return->partner->name]);
+            $description = __('sales::returns.entry_description', ['customer' => $return->partner->name]);
 
             $stockLines = $return->lines->filter(fn ($l) => $l->product->tracksStock())->values();
-            $costs = [];
 
             if ($stockLines->isNotEmpty()) {
-                $result = $this->issueStock->handle(new StockOperationData(
+                $this->receiveStock->handle(new StockOperationData(
                     date: $return->date,
                     branchId: $return->branch_id,
-                    type: StockMoveType::PurchaseReturn,
+                    type: StockMoveType::SaleReturn,
                     source: $return,
                     lines: $stockLines->map(fn ($l) => new StockLineData(
                         productId: $l->product_id,
@@ -190,17 +194,14 @@ class ReturnActions
                         batchNumber: $l->batch_number,
                         serials: $l->serials ?? [],
                         sourceLine: $l,
+                        // Back at what it cost when it left.
+                        totalCost: $l->cost ?? '0',
                     ))->all(),
-                    counterAccountKey: 'purchases.grni',
+                    counterAccountKey: 'inventory.cogs',
                     counterScopes: [$return->partner],
                     description: $description,
                     postedBy: $actor,
                 ));
-
-                foreach ($stockLines as $i => $line) {
-                    $costs[$line->id] = $result->lineCost($i);
-                    $line->update(['stock_cost' => $costs[$line->id]]);
-                }
             }
 
             $entry = new EntryBuilder($isForeign ? $return->currency_id : null);
@@ -208,31 +209,22 @@ class ReturnActions
 
             foreach ($return->lines as $line) {
                 $product = $line->product;
-                $net = $toBase($line->net);
-
-                if ($product->tracksStock()) {
-                    $scopes = [$product, $product->category, $return->partner, $return->warehouse];
-                    $entry->credit($this->accounts->resolve('purchases.grni', $scopes)->id, $costs[$line->id], $line->net);
-                    // Refund above the stock cost is a gain, below it a loss.
-                    $entry->credit($this->accounts->resolve('inventory.price_difference', [$product, $product->category, $return->warehouse])->id, $net->minus($costs[$line->id]));
-                } else {
-                    $entry->credit($this->accounts->resolve('purchases.expense', [$product, $product->category, $return->branch])->id, $net, $line->net);
-                }
+                $entry->debit($this->accounts->resolve('sales.returns', [$product, $product->category, $return->partner, $return->branch])->id, $toBase($line->net), $line->net);
 
                 if ($line->tax_amount->isPositive()) {
-                    $entry->credit($this->accounts->resolve('tax.input', [$line->tax, $return->branch])->id, $toBase($line->tax_amount), $line->tax_amount);
+                    $entry->debit($this->accounts->resolve('tax.output', [$line->tax, $return->branch])->id, $toBase($line->tax_amount), $line->tax_amount);
                 }
 
                 $docTotal = $docTotal->plus($line->line_total);
             }
 
-            $payableAccount = $this->accounts->resolve('purchases.payable', [$return->partner, $return->branch]);
-            $entry->debit($payableAccount->id, $entry->totalCredit()->minus($entry->totalDebit()), $docTotal, $return->partner_id);
+            $receivable = $this->accounts->resolve('sales.receivable', [$return->partner, $return->branch]);
+            $entry->credit($receivable->id, $entry->totalDebit(), $docTotal, $return->partner_id);
 
             $journal = $this->postEntry->handle(new JournalEntryData(
                 date: $return->date,
                 branchId: $return->branch_id,
-                journalType: JournalType::Purchases,
+                journalType: JournalType::Sales,
                 lines: $entry->lines(),
                 description: $description,
                 source: $return,
@@ -242,44 +234,44 @@ class ReturnActions
             $return->update([
                 'status' => DocumentStatus::Posted,
                 'journal_entry_id' => $journal->id,
-                'number' => $this->numbers->handle(PurchaseReturn::SEQUENCE, $return->branch_id, $return->date),
+                'number' => $this->numbers->handle(SalesReturn::SEQUENCE, $return->branch_id, $return->date),
                 'posted_by' => $actor->id,
                 'posted_at' => now(),
             ]);
 
-            $this->settleAgainstInvoice($return, $journal->lines()->where('account_id', $payableAccount->id)->where('debit', '>', 0)->first(), $actor);
+            $this->settleAgainstInvoice($return, $journal->lines()->where('account_id', $receivable->id)->where('credit', '>', 0)->first(), $actor);
 
             return $return;
         });
     }
 
     /**
-     * The return reduces what is owed on its invoice: match it with the invoice's open amount.
+     * The return reduces what the customer owes on its invoice.
      */
-    private function settleAgainstInvoice(PurchaseReturn $return, ?JournalLine $returnLine, User $actor): void
+    private function settleAgainstInvoice(SalesReturn $return, ?JournalLine $returnLine, User $actor): void
     {
         $invoiceLine = $return->invoice->journalEntry?->lines()
-            ->where('partner_id', $return->partner_id)->where('credit', '>', 0)->first();
+            ->where('partner_id', $return->partner_id)->where('debit', '>', 0)->first();
 
         if ($returnLine === null || $invoiceLine === null || $returnLine->account_id !== $invoiceLine->account_id) {
             return;
         }
 
-        $amount = $this->reconciler->residual($invoiceLine);
+        $open = $this->reconciler->residual($invoiceLine);
         $own = $this->reconciler->residual($returnLine);
-        $amount = $amount->isLessThan($own) ? $amount : $own;
+        $amount = $open->isLessThan($own) ? $open : $own;
 
         if ($amount->isPositive()) {
-            $this->reconciler->reconcile($returnLine, $invoiceLine, $amount, $actor->id);
+            $this->reconciler->reconcile($invoiceLine, $returnLine, $amount, $actor->id);
         }
     }
 
-    public function cancel(User $actor, PurchaseReturn $return, string $reason): PurchaseReturn
+    public function cancel(User $actor, SalesReturn $return, string $reason): SalesReturn
     {
-        Gate::forUser($actor)->authorize('purchases.returns.cancel');
+        Gate::forUser($actor)->authorize('sales.returns.cancel');
 
         return DB::transaction(function () use ($actor, $return, $reason) {
-            $return = PurchaseReturn::whereKey($return->id)->lockForUpdate()->firstOrFail();
+            $return = SalesReturn::whereKey($return->id)->lockForUpdate()->firstOrFail();
 
             if ($return->status !== DocumentStatus::Posted) {
                 throw ValidationException::withMessages(['return' => __('core::documents.not_posted')]);
@@ -299,9 +291,9 @@ class ReturnActions
         });
     }
 
-    public function delete(User $actor, PurchaseReturn $return): void
+    public function delete(User $actor, SalesReturn $return): void
     {
-        Gate::forUser($actor)->authorize('purchases.returns.create');
+        Gate::forUser($actor)->authorize('sales.returns.create');
 
         if ($return->status !== DocumentStatus::Draft) {
             throw ValidationException::withMessages(['return' => __('core::documents.not_draft')]);

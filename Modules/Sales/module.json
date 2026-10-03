@@ -1,0 +1,14 @@
+{
+    "name": "Sales",
+    "alias": "sales",
+    "description": "Sales invoices and returns, price lists and credit limits.",
+    "keywords": [],
+    "version": "0.1.0",
+    "requires": ["Core", "Accounting", "Products", "Inventory"],
+    "installer": "Modules\\Sales\\SalesInstaller",
+    "priority": 50,
+    "providers": [
+        "Modules\\Sales\\Providers\\SalesServiceProvider"
+    ],
+    "files": []
+}
