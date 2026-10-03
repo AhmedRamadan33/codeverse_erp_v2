@@ -12,7 +12,8 @@ class AlphaInstaller implements ModuleInstaller
 
     public function install(): void
     {
-        DB::table('alpha_items')->insert(['name' => 'seeded']);
+        // Reads the module's config, so enabling must load the module before installing it.
+        DB::table('alpha_items')->insert(['name' => config('alpha.item_name')]);
     }
 
     public function upgrade(string $fromVersion, string $toVersion): void

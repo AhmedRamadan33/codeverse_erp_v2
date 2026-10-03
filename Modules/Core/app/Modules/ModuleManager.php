@@ -39,6 +39,12 @@ class ModuleManager
             }
         }
 
+        // A disabled module's providers were never registered: load them now so its config
+        // (setting defaults), translations and routes exist for the installer and this request.
+        // Registering an already-registered provider does nothing.
+        $module->register();
+        $module->boot();
+
         // DDL commits implicitly on MySQL, so migrations run outside the transaction.
         $this->migrate($module);
 

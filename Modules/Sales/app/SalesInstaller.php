@@ -27,10 +27,7 @@ class SalesInstaller implements ModuleInstaller
 
         // Counter sales without a named customer post to this partner.
         if ($this->settings->get('sales.walk_in_partner_id') === null) {
-            // Read the lang file directly: while being enabled, the module's translations are not loaded yet.
-            $locale = $this->settings->get('core.default_locale');
-            $name = (require module_path('Sales', "lang/{$locale}/invoices.php"))['walk_in_customer'];
-
+            $name = __('sales::invoices.walk_in_customer', locale: $this->settings->get('core.default_locale'));
             $walkIn = Partner::create(['type' => 'person', 'name' => $name, 'is_customer' => true]);
             $this->settings->set('sales.walk_in_partner_id', $walkIn->id);
         }
