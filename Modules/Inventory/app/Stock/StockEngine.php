@@ -74,7 +74,7 @@ class StockEngine
         $batch = $this->batchForReceipt($product, $line);
         $serials = $this->serialsForReceipt($product, $line, $batch);
 
-        $total = $line->quantity->multipliedBy($unitCost)->toScale(4, RoundingMode::HalfUp);
+        $total = $line->totalCost ?? $line->quantity->multipliedBy($unitCost)->toScale(4, RoundingMode::HalfUp);
         $move = $this->apply($op, $line, $product, $line->quantity, $total, $batch?->id);
 
         $this->attachSerials($move, $serials, SerialStatus::InStock, $line->warehouseId);

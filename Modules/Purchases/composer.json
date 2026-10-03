@@ -1,0 +1,22 @@
+{
+    "name": "codeverse/purchases",
+    "description": "Purchases module for CodeVerse ERP",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Purchases\\": "app/",
+            "Modules\\Purchases\\Database\\Factories\\": "database/factories/",
+            "Modules\\Purchases\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Purchases\\Tests\\": "tests/"
+        }
+    }
+}

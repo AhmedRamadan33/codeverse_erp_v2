@@ -1,0 +1,14 @@
+{
+    "name": "Purchases",
+    "alias": "purchases",
+    "description": "Purchase invoices and purchase returns.",
+    "keywords": [],
+    "version": "0.1.0",
+    "requires": ["Core", "Accounting", "Products", "Inventory"],
+    "installer": "Modules\\Purchases\\PurchasesInstaller",
+    "priority": 40,
+    "providers": [
+        "Modules\\Purchases\\Providers\\PurchasesServiceProvider"
+    ],
+    "files": []
+}
