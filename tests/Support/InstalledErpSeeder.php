@@ -5,6 +5,8 @@ namespace Tests\Support;
 use Illuminate\Database\Seeder;
 use Modules\Core\Installation\InstallationData;
 use Modules\Core\Installation\InstallErp;
+use Modules\Core\Modules\ModuleManager;
+use Nwidart\Modules\Contracts\RepositoryInterface;
 
 /**
  * Seeds the test database once per run with a real installation (base modules, chart of
@@ -17,7 +19,7 @@ class InstalledErpSeeder extends Seeder
 
     public const BRANCH_CODE = 'MAIN';
 
-    public function run(InstallErp $installer): void
+    public function run(InstallErp $installer, ModuleManager $modules, RepositoryInterface $repository): void
     {
         $installer->handle(new InstallationData(
             companyName: 'Acme',
@@ -30,5 +32,10 @@ class InstalledErpSeeder extends Seeder
             adminEmail: self::ADMIN_EMAIL,
             adminPassword: 'password123',
         ));
+
+        // Then every optional module in the codebase, so their installers run like on a real installation.
+        foreach ($modules->sortByDependencies($repository->all()) as $module) {
+            $modules->enable($module->getName());
+        }
     }
 }

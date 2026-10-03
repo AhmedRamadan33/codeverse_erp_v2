@@ -1,0 +1,14 @@
+{
+    "name": "Inventory",
+    "alias": "inventory",
+    "description": "Warehouses, stock moves, weighted-average costing, batches and serials.",
+    "keywords": [],
+    "version": "0.1.0",
+    "requires": ["Core", "Accounting", "Products"],
+    "installer": "Modules\\Inventory\\InventoryInstaller",
+    "priority": 30,
+    "providers": [
+        "Modules\\Inventory\\Providers\\InventoryServiceProvider"
+    ],
+    "files": []
+}

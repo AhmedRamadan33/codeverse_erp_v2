@@ -1,0 +1,43 @@
+<?php
+
+return [
+    'title' => 'Products',
+    'new' => 'New product',
+    'edit' => 'Edit product',
+    'types' => [
+        'stockable' => 'Stocked product',
+        'consumable' => 'Consumable (no stock)',
+        'service' => 'Service',
+    ],
+    'tracking' => [
+        'none' => 'No tracking',
+        'batch' => 'Batch / expiry',
+        'serial' => 'Serial numbers',
+    ],
+    'fields' => [
+        'sku' => 'Code (SKU)',
+        'name' => 'Name',
+        'category' => 'Category',
+        'type' => 'Type',
+        'tracking' => 'Tracking',
+        'base_unit' => 'Base unit (smallest)',
+        'sale_price' => 'Sale price',
+        'purchase_price' => 'Purchase price',
+        'sale_tax' => 'Sales tax',
+        'purchase_tax' => 'Purchase tax',
+        'description' => 'Description',
+        'units' => 'Other units',
+        'unit' => 'Unit',
+        'factor' => 'Contains (base units)',
+        'barcodes' => 'Barcodes (comma separated)',
+        'default_sale' => 'Default for sales',
+        'default_purchase' => 'Default for purchases',
+    ],
+    'add_unit' => 'Add unit',
+    'no_tax' => 'No tax',
+    'base_unit_repeated' => 'The base unit is already the product\'s smallest unit; do not add it again.',
+    'in_use_core_fields' => 'This product is already used, so its base unit, type and tracking cannot change.',
+    'barcode_repeated' => 'The same barcode is entered twice.',
+    'barcode_taken' => 'Barcode :barcode belongs to another product.',
+    'unit_not_for_product' => 'This unit is not defined for :product.',
+];

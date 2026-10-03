@@ -1,0 +1,22 @@
+{
+    "name": "codeverse/products",
+    "description": "Products module for CodeVerse ERP",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Products\\": "app/",
+            "Modules\\Products\\Database\\Factories\\": "database/factories/",
+            "Modules\\Products\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Products\\Tests\\": "tests/"
+        }
+    }
+}

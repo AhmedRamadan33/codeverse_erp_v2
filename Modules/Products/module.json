@@ -1,0 +1,14 @@
+{
+    "name": "Products",
+    "alias": "products",
+    "description": "Products, categories, units of measure and barcodes.",
+    "keywords": [],
+    "version": "0.1.0",
+    "requires": ["Core", "Accounting"],
+    "installer": "Modules\\Products\\ProductsInstaller",
+    "priority": 20,
+    "providers": [
+        "Modules\\Products\\Providers\\ProductsServiceProvider"
+    ],
+    "files": []
+}
