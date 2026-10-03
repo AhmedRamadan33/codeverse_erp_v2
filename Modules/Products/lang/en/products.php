@@ -35,6 +35,7 @@ return [
     ],
     'add_unit' => 'Add unit',
     'no_tax' => 'No tax',
+    'picker_placeholder' => 'Name, code or barcode…',
     'base_unit_repeated' => 'The base unit is already the product\'s smallest unit; do not add it again.',
     'in_use_core_fields' => 'This product is already used, so its base unit, type and tracking cannot change.',
     'barcode_repeated' => 'The same barcode is entered twice.',

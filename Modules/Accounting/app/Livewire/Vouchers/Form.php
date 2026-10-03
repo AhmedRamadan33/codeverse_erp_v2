@@ -37,7 +37,8 @@ class Form extends Component
             $this->form = [
                 'date' => now()->toDateString(),
                 'branch_id' => $user->branches()->wherePivot('is_default', true)->value('branches.id') ?? $user->branches()->value('branches.id'),
-                'partner_id' => null,
+                // Pre-filled from "Pay" / "Collect" buttons on invoices.
+                'partner_id' => request()->integer('partner_id') ?: null,
                 'payment_method_id' => PaymentMethod::where('is_active', true)->orderBy('sort')->value('id'),
                 'currency_id' => $currencies->base()->id,
                 'exchange_rate' => '1',
