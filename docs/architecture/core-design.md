@@ -349,6 +349,8 @@ UoM rules, replacing v1's global `base_unit_is_largest` multiplier:
 
 Only `stockable` products create stock moves. `consumable` and `service` products post straight to expense or revenue.
 
+**`ProductUsage` registry.** Products cannot depend on the modules that use products. Those modules (Inventory first) register a check with `ProductUsage`, and Products refuses to change a used product's base unit, type or tracking.
+
 ## 9. Inventory module
 
 ### 9.1 Tables
@@ -370,13 +372,13 @@ Only `stockable` products create stock moves. `consumable` and `service` product
 
 ### 9.2 Module API
 ```php
-ReceiveStock::handle(StockReceiptData $data): StockResult   // in-moves + valuation entry
-IssueStock::handle(StockIssueData $data): StockResult       // out-moves at cost + valuation entry
-TransferStock::handle(StockTransferData $data): StockResult
-ReverseStock::handle(Model $source): StockResult            // used by cancellations
-PostDeferredValuation::handle(DeferredValuationData $data): ?JournalEntry  // POS shift close
+ReceiveStock::handle(StockOperationData $op): StockResult                 // in-moves + valuation entry
+IssueStock::handle(StockOperationData $op): StockResult                   // out-moves at cost + valuation entry
+TransferStock::handle(StockOperationData $op, int $toWarehouseId): StockResult
+ReverseStock::handle(Model $source, $date, $reason, $branchId, $user): StockResult  // cancellations
+PostDeferredValuation::handle(array $sources, Model $entrySource, ...): ?JournalEntry  // POS shift close
 ```
-- `StockIssueData` and `StockReceiptData` accept `deferValuation` (default `false`).
+- `StockOperationData` carries `deferValuation` (default `false`).
   - When it is `true`, the moves and their costs are written and the caches are updated, but no journal entry is made.
   - `PostDeferredValuation` later posts one entry for a set of sources and stamps the moves with its `journal_entry_id`. Only POS uses this (§7.1).
 - Each call carries the source document, the lines (product, warehouse, base quantity, batch/serials, unit cost for receipts), the counter-account mapping key and the date.
@@ -385,13 +387,17 @@ PostDeferredValuation::handle(DeferredValuationData $data): ?JournalEntry  // PO
 ### 9.3 Weighted-average cost
 - On a receipt:
   `new_avg = (value_on_hand + received_qty × unit_cost) / (qty_on_hand + received_qty)`
-- If `qty_on_hand ≤ 0` before the receipt, the new average is the receipt's unit cost.
-- Issues go out at the current average and don't change it.
-- Values are computed with `BigDecimal` and stored with 4 decimals. Any rounding remainder stays in `total_value`, so value = Σ move costs holds exactly.
+- If `qty_on_hand ≤ 0` after the receipt, the average stays at the receipt's unit cost.
+- An issue takes a proportional share of the stock value: `cost = total_value × qty / qty_on_hand`, rounded to 4 decimals. Issuing everything that is left takes exactly `total_value`.
+- So `value = Σ move costs` holds exactly, with no rounding residue (`inventory:check` verifies it).
+- Transfers move stock between warehouses at its current value. They don't change the company-wide average.
+- Locks: `product_costs` rows, then `stock_balances` rows, in id order. The unbatched balance rows are inserted before locking.
 
 ### 9.4 Negative stock
 - The `inventory.allow_negative_stock` setting is off by default and can be set per branch.
-- When negative stock is allowed, issues are costed at the last known average. The difference is corrected when stock arrives (and recorded to `inventory.price_difference`).
+- When negative stock is allowed, issues beyond the stock on hand are costed at the last known average.
+- **Current limitation:** the next receipt simply adds its value, so a cost difference stays in the average. A correction posted to `inventory.price_difference` when stock arrives is planned with FIFO layers (§9.6).
+- Batch- and serial-tracked products never go negative.
 
 ### 9.5 Batches, expiry and serials
 - For batch-tracked products, an issue without an explicit batch picks batches **FEFO** (first expiry, first out).
