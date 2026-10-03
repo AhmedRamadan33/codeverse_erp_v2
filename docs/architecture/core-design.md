@@ -84,6 +84,8 @@ The use-case action holds the transaction. Locks are taken in this fixed order t
 3. Partner-related rows (credit-limit check) if needed.
 4. Number sequences, **last**, because they are the hottest rows.
 
+InnoDB runs at REPEATABLE READ: a plain `SELECT` inside a transaction reads the snapshot taken at the transaction's first read, even after a lock was waited for. So **every read that decides a write while posting must be a locking read** (`lockForUpdate`): stock balances, available quantity, batch quantities, reconciliation residuals. Otherwise two postings that queued on the same lock both act on the old value (found by `ConcurrentPostingTest`, which posts the last unit from two processes).
+
 ## 4. Core module
 
 ### 4.1 Tables

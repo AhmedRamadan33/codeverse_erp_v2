@@ -9,5 +9,6 @@ return [
     ],
     'actions' => [
         'override' => 'Exceed when blocked',
+        'view_cost' => 'View cost and margin',
     ],
 ];

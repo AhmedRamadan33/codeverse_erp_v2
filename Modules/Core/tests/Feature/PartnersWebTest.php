@@ -66,7 +66,7 @@ class PartnersWebTest extends TestCase
             ->call('save')
             ->assertHasErrors('is_customer');
 
-        $this->assertSame(0, Partner::count());
+        $this->assertFalse(Partner::where('name', 'X')->exists());
     }
 
     public function test_users_only_see_shared_partners_and_those_of_their_branches(): void

@@ -40,6 +40,12 @@ return [
         'cancel_reason' => 'سبب الإلغاء',
     ],
     'default_price_list' => 'أسعار الأصناف',
+    'discount_types' => [
+        'amount' => 'مبلغ',
+        'percent' => '%',
+    ],
+    'batch_auto' => 'تلقائي (الأقرب انتهاءً)',
+    'over_limit_title' => 'تجاوز حد الائتمان',
     'no_tax' => 'بدون ضريبة',
     'add_line' => 'إضافة سطر',
     'save_draft' => 'حفظ كمسودة',

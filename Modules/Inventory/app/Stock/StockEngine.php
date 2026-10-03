@@ -212,10 +212,14 @@ class StockEngine
             'created_by' => $op->postedBy?->id,
         ]);
 
-        $balance = StockBalance::firstOrCreate(
-            ['product_id' => $product->id, 'warehouse_id' => $line->warehouseId, 'batch_id' => $batchId],
-            ['quantity' => '0'],
-        );
+        // Locking reads only: under REPEATABLE READ a plain read may return the transaction's
+        // older snapshot, and adding to it would lose a concurrent posting's change.
+        $key = ['product_id' => $product->id, 'warehouse_id' => $line->warehouseId, 'batch_id' => $batchId];
+        $balance = StockBalance::where($key)->lockForUpdate()->first();
+        if ($balance === null) {
+            StockBalance::insertOrIgnore([$key + ['quantity' => 0, 'created_at' => now(), 'updated_at' => now()]]);
+            $balance = StockBalance::where($key)->lockForUpdate()->firstOrFail();
+        }
         $balance->update(['quantity' => $balance->quantity->plus($quantity)]);
 
         if (! in_array($op->type, [StockMoveType::TransferIn, StockMoveType::TransferOut], true)) {
@@ -241,10 +245,12 @@ class StockEngine
             return;
         }
 
-        $available = BigDecimal::of(StockBalance::where('product_id', $product->id)
+        $available = StockBalance::where('product_id', $product->id)
             ->where('warehouse_id', $line->warehouseId)
             ->when($batchId !== null, fn ($q) => $q->where('batch_id', $batchId))
-            ->sum('quantity') ?: 0);
+            ->lockForUpdate()
+            ->get()
+            ->reduce(fn (BigDecimal $sum, StockBalance $b) => $sum->plus($b->quantity), BigDecimal::zero());
 
         if ($available->isLessThan($quantity)) {
             throw ValidationException::withMessages(['lines' => __('inventory::moves.insufficient', [
@@ -303,6 +309,7 @@ class StockEngine
             ->orderByRaw('stock_batches.expiry_date is null')
             ->orderBy('stock_batches.expiry_date')
             ->orderBy('stock_batches.id')
+            ->lockForUpdate()
             ->get(['stock_balances.batch_id', 'stock_balances.quantity']);
 
         $remaining = $line->quantity;

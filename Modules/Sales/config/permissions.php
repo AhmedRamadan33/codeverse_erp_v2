@@ -5,6 +5,8 @@ return [
     'sales.invoices.create',
     'sales.invoices.post',
     'sales.invoices.cancel',
+    // See line costs and margins on invoices.
+    'sales.invoices.view_cost',
     'sales.returns.view',
     'sales.returns.create',
     'sales.returns.post',

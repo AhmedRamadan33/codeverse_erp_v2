@@ -40,6 +40,12 @@ return [
         'cancel_reason' => 'Cancellation reason',
     ],
     'default_price_list' => 'Product prices',
+    'discount_types' => [
+        'amount' => 'Amount',
+        'percent' => '%',
+    ],
+    'batch_auto' => 'Auto (earliest expiry)',
+    'over_limit_title' => 'Credit limit exceeded',
     'no_tax' => 'No tax',
     'add_line' => 'Add line',
     'save_draft' => 'Save draft',

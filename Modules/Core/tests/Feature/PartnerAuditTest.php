@@ -22,7 +22,7 @@ class PartnerAuditTest extends TestCase
         $partner->update(['name' => 'New Name']);
         $partner->delete();
 
-        $logs = AuditLog::where('auditable_type', $partner->getMorphClass())->orderBy('id')->get();
+        $logs = AuditLog::where('auditable_type', $partner->getMorphClass())->where('auditable_id', $partner->id)->orderBy('id')->get();
 
         $this->assertSame(['created', 'updated', 'deleted'], $logs->pluck('event')->all());
         $this->assertSame($user->id, $logs[1]->user_id);
@@ -45,11 +45,11 @@ class PartnerAuditTest extends TestCase
         $alex = Branch::factory()->create();
         $shared = Partner::factory()->create();
         $cairoOnly = Partner::factory()->create(['branch_id' => $cairo->id]);
-        Partner::factory()->create(['branch_id' => $alex->id]);
+        $alexOnly = Partner::factory()->create(['branch_id' => $alex->id]);
 
         $this->assertEqualsCanonicalizing(
             [$shared->id, $cairoOnly->id],
-            Partner::availableIn($cairo->id)->pluck('id')->all(),
+            Partner::availableIn($cairo->id)->whereKey([$shared->id, $cairoOnly->id, $alexOnly->id])->pluck('id')->all(),
         );
     }
 }

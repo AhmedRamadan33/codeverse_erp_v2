@@ -23,12 +23,16 @@ class Reconciler
     /**
      * The part of a line not yet matched, in base currency.
      */
-    public function residual(JournalLine $line): BigDecimal
+    public function residual(JournalLine $line, bool $lock = false): BigDecimal
     {
         $isDebit = $line->debit->isPositive();
-        $matched = Reconciliation::where($isDebit ? 'debit_line_id' : 'credit_line_id', $line->id)->sum('amount');
+        // A locking read sees the latest committed matches, not the transaction's older snapshot.
+        $matched = Reconciliation::where($isDebit ? 'debit_line_id' : 'credit_line_id', $line->id)
+            ->when($lock, fn (Builder $q) => $q->lockForUpdate())
+            ->get(['amount'])
+            ->reduce(fn (BigDecimal $sum, Reconciliation $r) => $sum->plus($r->amount), BigDecimal::zero());
 
-        return ($isDebit ? $line->debit : $line->credit)->minus(BigDecimal::of($matched ?: 0))->toScale(4);
+        return ($isDebit ? $line->debit : $line->credit)->minus($matched)->toScale(4);
     }
 
     /**
@@ -80,8 +84,8 @@ class Reconciler
         $amount = $amount->toScale(4);
 
         if (! $amount->isPositive()
-            || $amount->isGreaterThan($this->residual($debit))
-            || $amount->isGreaterThan($this->residual($credit))) {
+            || $amount->isGreaterThan($this->residual($debit, true))
+            || $amount->isGreaterThan($this->residual($credit, true))) {
             throw PostingException::because('reconcile_amount', ['amount' => (string) $amount], 'allocations');
         }
 

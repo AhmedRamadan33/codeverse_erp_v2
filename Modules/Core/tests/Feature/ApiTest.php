@@ -63,7 +63,7 @@ class ApiTest extends TestCase
         $this->getJson('/api/v1/partners?search=Delta')->assertOk()->assertJsonCount(1, 'data');
 
         $this->deleteJson("/api/v1/partners/{$id}")->assertNoContent();
-        $this->assertSame(0, Partner::count());
+        $this->assertNull(Partner::find($id));
     }
 
     public function test_the_api_enforces_permissions(): void
