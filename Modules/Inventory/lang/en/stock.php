@@ -1,0 +1,30 @@
+<?php
+
+return [
+    'on_hand' => 'Stock on hand',
+    'moves' => 'Item movements',
+    'warehouses' => 'Warehouses',
+    'consistent' => 'Stock balances and costs match the stock moves.',
+    'fields' => [
+        'product' => 'Product',
+        'warehouse' => 'Warehouse',
+        'batch' => 'Batch',
+        'expiry' => 'Expiry',
+        'quantity' => 'Quantity',
+        'average_cost' => 'Average cost',
+        'value' => 'Value',
+        'date' => 'Date',
+        'type' => 'Movement',
+        'document' => 'Document',
+        'in' => 'In',
+        'out' => 'Out',
+        'balance' => 'Balance',
+        'unit_cost' => 'Unit cost',
+        'code' => 'Code',
+        'branch' => 'Branch',
+    ],
+    'all_warehouses' => 'All warehouses',
+    'choose_product' => 'Choose a product to see its movements.',
+    'negative_stock' => 'Allow selling more than the stock on hand',
+    'negative_stock_hint' => 'Applies to the whole installation; off is the safe default.',
+];
