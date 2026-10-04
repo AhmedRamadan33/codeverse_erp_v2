@@ -126,6 +126,53 @@ class ModuleManager
         return $upgraded;
     }
 
+    /**
+     * Enable the named modules and every module they require, in dependency order.
+     *
+     * @param  string[]  $names
+     */
+    public function enableWithRequirements(array $names): void
+    {
+        $wanted = [];
+        $collect = function (string $name) use (&$collect, &$wanted): void {
+            if (isset($wanted[$name])) {
+                return;
+            }
+            $module = $this->find($name);
+            $wanted[$name] = $module;
+            foreach ($this->requires($module) as $required) {
+                $collect($required);
+            }
+        };
+
+        foreach ($names as $name) {
+            $collect($name);
+        }
+
+        foreach ($this->sortByDependencies(array_values($wanted)) as $module) {
+            $this->enable($module->getName());
+        }
+    }
+
+    /**
+     * Modules an installation may choose (everything but the always-enabled base), with what each requires.
+     *
+     * @return array<string, string[]> name => required module names
+     */
+    public function optional(): array
+    {
+        $base = config('modules.activators.database.always-enabled', ['Core']);
+        $optional = [];
+
+        foreach ($this->sortByDependencies($this->modules->all()) as $module) {
+            if (! in_array($module->getName(), $base, true)) {
+                $optional[$module->getName()] = array_values(array_diff($this->requires($module), $base));
+            }
+        }
+
+        return $optional;
+    }
+
     public function isEnabled(string $name): bool
     {
         return $this->activator->hasStatus($name, true);

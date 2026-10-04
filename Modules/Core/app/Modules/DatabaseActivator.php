@@ -55,6 +55,15 @@ class DatabaseActivator implements ActivatorInterface
     }
 
     /**
+     * Whether the installation has been set up (Core is recorded). Once installed this reads the
+     * compiled cache file, so the check is free on every request.
+     */
+    public function isInstalled(): bool
+    {
+        return array_key_exists('Core', $this->statuses());
+    }
+
+    /**
      * Forget cached statuses; called by ModuleManager after every change.
      */
     public function reset(): void

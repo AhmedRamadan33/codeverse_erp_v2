@@ -1,11 +1,36 @@
 <?php
 
 return [
+    'title' => 'Set up CodeVerse ERP',
+    'step' => 'Step :current of :total',
+    'steps' => [
+        'checks' => 'Server check',
+        'company' => 'Company and main branch',
+        'admin' => 'Administrator',
+        'modules' => 'Modules',
+    ],
+    'checks' => [
+        'php' => 'PHP :version or newer',
+        'database' => 'MySQL 8 database reachable (settings in .env)',
+        'writable' => 'The :path folder is writable',
+        'extension' => 'PHP extension :name',
+        'fix' => 'Fix the items marked in red, then reload this page.',
+    ],
     'company' => 'Company name',
+    'currency' => 'Base currency',
+    'currency_hint' => 'It cannot change after the first posting.',
     'locale' => 'Default language',
     'branch_ar' => 'Main branch name (Arabic)',
+    'branch_en' => 'Main branch name (English)',
+    'branch_code' => 'Main branch code',
     'admin_name' => 'Administrator name',
     'admin_email' => 'Administrator email',
     'admin_password' => 'Administrator password',
+    'admin_password_confirmation' => 'Repeat the password',
+    'modules_hint' => 'Accounting is always installed. Choose what this business needs; more modules can be enabled later.',
+    'requires' => 'Also installs: :modules',
+    'back' => 'Back',
+    'next' => 'Next',
+    'install' => 'Install',
     'done' => 'Installation complete. Sign in with the administrator account.',
 ];

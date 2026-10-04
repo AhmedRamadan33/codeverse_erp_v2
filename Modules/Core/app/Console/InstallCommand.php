@@ -23,7 +23,8 @@ class InstallCommand extends Command
         {--branch-code=MAIN : Main branch code}
         {--admin-name= : Administrator name}
         {--admin-email= : Administrator email}
-        {--admin-password= : Administrator password}';
+        {--admin-password= : Administrator password}
+        {--modules= : Optional modules to enable too, comma separated (e.g. Pos); their requirements are added}';
 
     protected $description = 'Set up a new installation: database, base modules, main branch and administrator';
 
@@ -47,17 +48,8 @@ class InstallCommand extends Command
             'admin_password' => $this->option('admin-password') ?? password(__('core::install.admin_password'), required: true),
         ];
 
-        $validator = Validator::make($input, [
-            'company' => ['required', 'string', 'max:255'],
-            'currency' => ['required', 'string', 'size:3', 'in:'.implode(',', array_column(require module_path('Core', 'database/data/currencies.php'), 'code'))],
-            'locale' => ['required', 'in:ar,en'],
-            'branch_ar' => ['required', 'string', 'max:255'],
-            'branch_en' => ['nullable', 'string', 'max:255'],
-            'branch_code' => ['required', 'alpha_dash', 'max:16'],
-            'admin_name' => ['required', 'string', 'max:255'],
-            'admin_email' => ['required', 'email'],
-            'admin_password' => ['required', 'string', 'min:8'],
-        ]);
+        $input['modules'] = array_values(array_filter(array_map('trim', explode(',', (string) $this->option('modules')))));
+        $validator = Validator::make($input, InstallationData::rules());
 
         if ($validator->fails()) {
             foreach ($validator->errors()->all() as $error) {
@@ -68,17 +60,7 @@ class InstallCommand extends Command
         }
 
         try {
-            $installer->handle(new InstallationData(
-                companyName: $input['company'],
-                baseCurrency: $input['currency'],
-                locale: $input['locale'],
-                branchNameAr: $input['branch_ar'],
-                branchNameEn: $input['branch_en'],
-                branchCode: $input['branch_code'],
-                adminName: $input['admin_name'],
-                adminEmail: $input['admin_email'],
-                adminPassword: $input['admin_password'],
-            ));
+            $installer->handle(InstallationData::fromInput($validator->validated()));
         } catch (ModuleException $e) {
             $this->components->error($e->getMessage());
 

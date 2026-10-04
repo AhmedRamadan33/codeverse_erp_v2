@@ -472,10 +472,11 @@ PostDeferredValuation::handle(array<string, int[]> $sources, Model $entrySource,
 
 | Command | What it does |
 |---------|--------------|
-| `erp:install` | Checks the environment, migrates Core + Accounting, then asks for company info, base currency, chart template, first fiscal year, main branch and admin user. |
+| `erp:install` | Migrates, then asks for company name, base currency, language, main branch and admin user; `--modules=` enables optional modules too (their requirements are added). Accounting installs the chart template from the `accounting.chart_template` setting and opens the current fiscal year. |
+| Web wizard `/install` | Same action (`InstallErp`), after checking PHP, extensions, MySQL 8 and writable folders. Until the installation exists every web page redirects to it and runs on file sessions/cache (the session and cache tables do not exist yet); afterwards it answers 404. |
 | `erp:module:enable {name}` | Checks `requires`, migrates the module, syncs permissions and account mappings, runs `install()`, marks the module enabled. |
 | `erp:module:disable {name}` | Refused for Core/Accounting and for any module an enabled module requires. Tables and data are kept. |
-| `erp:upgrade` | Maintenance mode → DB backup → migrations of enabled modules in dependency order → `upgrade()` hooks → permission/mapping sync → cache clear. |
+| `erp:upgrade` | Maintenance mode → migrations of enabled modules in dependency order → `upgrade()` hooks → permission/mapping sync → cache clear. **Not built yet:** a database backup before migrating. |
 
 ### 11.3 Migration rules
 - A module's migrations may add foreign keys only to tables of modules it `requires`.

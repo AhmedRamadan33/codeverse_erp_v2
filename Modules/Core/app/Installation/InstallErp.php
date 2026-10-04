@@ -34,6 +34,9 @@ class InstallErp
             throw ModuleException::make('already_installed');
         }
 
+        // Migrating and installing modules can take a while from the web wizard.
+        @set_time_limit(0);
+
         Artisan::call('migrate', ['--force' => true]);
 
         // Settings first: module installers read them (e.g. Core activates the base currency).
@@ -48,7 +51,7 @@ class InstallErp
             $this->modules->enable($module);
         }
 
-        return DB::transaction(function () use ($data) {
+        $admin = DB::transaction(function () use ($data) {
             $branch = Branch::create([
                 'name' => array_filter(['ar' => $data->branchNameAr, 'en' => $data->branchNameEn]),
                 'code' => $data->branchCode,
@@ -65,5 +68,10 @@ class InstallErp
 
             return $admin;
         });
+
+        // After the branch exists: installers such as Inventory's create a warehouse per branch.
+        $this->modules->enableWithRequirements($data->modules);
+
+        return $admin;
     }
 }

@@ -13,6 +13,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Before StartSession: a fresh installation has no sessions table yet.
+        $middleware->web(prepend: [
+            Modules\Core\Http\Middleware\RequireInstallation::class,
+        ]);
         $middleware->web(append: [
             Modules\Core\Http\Middleware\SetLocale::class,
             Modules\Core\Http\Middleware\EnsureUserIsActive::class,

@@ -10,6 +10,9 @@ Route::middleware('guest')->group(function () {
     Route::livewire('/login', Livewire\Auth\Login::class)->name('login');
 });
 
+// Only before installation (RequireInstallation answers 404 afterwards).
+Route::livewire('/install', Livewire\Install\Wizard::class)->name('core.install');
+
 Route::post('/locale', [SessionController::class, 'updateLocale'])->name('core.locale.update');
 
 Route::middleware('auth')->name('core.')->group(function () {
