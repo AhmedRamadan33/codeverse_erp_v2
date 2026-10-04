@@ -501,6 +501,7 @@ PostDeferredValuation::handle(array<string, int[]> $sources, Model $entrySource,
 - Flow: Web (Livewire) and API controllers → Form Request / validation → DTO → **the same use-case action** → API Resource / view.
 - API routes are at `/api/v1/<module>/...`, defined in each module's `routes/api.php`, under `auth:sanctum`, with token abilities mirroring permissions.
 - Posting endpoints are `POST /api/v1/sales/invoices/{id}/post`, idempotent: posting an already posted document returns 409.
+- Built so far: Core (`auth`, `branches`, `currencies`, `partners`), Sales (`sales/invoices` and `sales/returns`: CRUD of drafts, `post`, `cancel`, `invoices/{id}/returns`), POS (§7.1). Inventory, Purchases and Accounting have no API yet.
 
 ## 14. Testing
 - Tests live in each module's `tests/`. Factories exist for all documents.
