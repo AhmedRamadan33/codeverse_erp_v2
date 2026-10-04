@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
+use Modules\Core\Console\BackupCommand;
 use Modules\Core\Console\DisableModuleCommand;
 use Modules\Core\Console\EnableModuleCommand;
 use Modules\Core\Console\InstallCommand;
@@ -33,6 +34,7 @@ class CoreServiceProvider extends ErpModuleServiceProvider
         EnableModuleCommand::class,
         DisableModuleCommand::class,
         UpgradeCommand::class,
+        BackupCommand::class,
     ];
 
     /**
