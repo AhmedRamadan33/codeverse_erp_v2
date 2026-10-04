@@ -10,6 +10,7 @@ return [
     'trial_balance' => 'ميزان المراجعة',
     'general_ledger' => 'دفتر الأستاذ',
     'partner_statement' => 'كشف حساب عميل / مورد',
+    'aged_balances' => 'أعمار الديون',
     'accounting_settings' => 'إعدادات الحسابات',
     'fiscal_years' => 'السنوات المالية',
     'mappings' => 'ربط الحسابات',

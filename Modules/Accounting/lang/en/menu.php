@@ -10,6 +10,7 @@ return [
     'trial_balance' => 'Trial balance',
     'general_ledger' => 'General ledger',
     'partner_statement' => 'Customer / supplier statement',
+    'aged_balances' => 'Aged balances',
     'accounting_settings' => 'Accounting settings',
     'fiscal_years' => 'Fiscal years',
     'mappings' => 'Account mappings',

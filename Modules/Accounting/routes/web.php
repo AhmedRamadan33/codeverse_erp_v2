@@ -34,6 +34,7 @@ Route::middleware('auth')->prefix('accounting')->name('accounting.')->group(func
         Route::livewire('/trial-balance', Livewire\Reports\TrialBalance::class)->name('trial-balance');
         Route::livewire('/general-ledger', Livewire\Reports\GeneralLedger::class)->name('general-ledger');
         Route::livewire('/partner-statement', Livewire\Reports\PartnerStatement::class)->name('partner-statement');
+        Route::livewire('/aged-balances', Livewire\Reports\AgedBalances::class)->name('aged-balances');
     });
 
     Route::livewire('/fiscal-years', Livewire\FiscalYears\Index::class)->name('fiscal-years.index')->middleware('can:accounting.fiscal_years.manage');

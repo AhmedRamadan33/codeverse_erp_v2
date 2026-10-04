@@ -48,6 +48,7 @@ class AccountingServiceProvider extends ErpModuleServiceProvider
         $menu->add(new MenuItem('accounting_reports', 'accounting::menu.trial_balance', 'accounting.reports.trial-balance', 'bi-table', 'accounting.reports.view', 10));
         $menu->add(new MenuItem('accounting_reports', 'accounting::menu.general_ledger', 'accounting.reports.general-ledger', 'bi-book', 'accounting.reports.view', 20));
         $menu->add(new MenuItem('accounting_reports', 'accounting::menu.partner_statement', 'accounting.reports.partner-statement', 'bi-person-vcard', 'accounting.reports.view', 30));
+        $menu->add(new MenuItem('accounting_reports', 'accounting::menu.aged_balances', 'accounting.reports.aged-balances', 'bi-hourglass-split', 'accounting.reports.view', 40));
 
         $menu->group('accounting_settings', 'accounting::menu.accounting_settings', 'bi-sliders', order: 800);
         $menu->add(new MenuItem('accounting_settings', 'accounting::menu.fiscal_years', 'accounting.fiscal-years.index', 'bi-calendar3', 'accounting.fiscal_years.manage', 10));
