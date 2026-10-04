@@ -12,8 +12,10 @@ use Modules\Inventory\Tests\Concerns\MovesStock;
 use Modules\Products\Livewire\Picker;
 use Modules\Products\Models\Product;
 use Modules\Products\Models\Unit;
+use Modules\Purchases\Actions\ReturnActions;
 use Modules\Purchases\Livewire\Invoices\Form;
 use Modules\Purchases\Livewire\Invoices\Show;
+use Modules\Purchases\Livewire\Reports\PurchasesAnalysis;
 use Modules\Purchases\Livewire\Returns\Form as ReturnForm;
 use Modules\Purchases\Models\PurchaseInvoice;
 use Modules\Purchases\Models\PurchaseReturn;
@@ -72,6 +74,15 @@ class PurchaseScreensTest extends TestCase
 
         $this->get(route('purchases.invoices.print', $invoice->id))->assertOk()->assertSee($invoice->fresh()->number)->assertSee($this->supplier->name)->assertSee('273.60');
         $this->get(route('purchases.returns.print', PurchaseReturn::sole()->id))->assertOk();
+
+        // The return is still a draft, so the report shows both cartons: 12 units, 240 net.
+        Livewire::test(PurchasesAnalysis::class)->assertSee($this->product->label())->assertSee('240.00')
+            ->set('groupBy', 'supplier')->assertSee($this->supplier->name);
+
+        // Once posted, the returned carton comes off: 120 net.
+        app(ReturnActions::class)->post($this->admin, PurchaseReturn::sole());
+        Livewire::test(PurchasesAnalysis::class)->assertSee('120.00')->assertDontSee('240.00');
+        $this->actingAs(User::factory()->create())->get(route('purchases.reports.analysis'))->assertForbidden();
     }
 
     public function test_the_picker_scans_a_barcode_into_its_unit(): void

@@ -9,4 +9,5 @@ return [
     'purchases.returns.create',
     'purchases.returns.post',
     'purchases.returns.cancel',
+    'purchases.reports.view',
 ];

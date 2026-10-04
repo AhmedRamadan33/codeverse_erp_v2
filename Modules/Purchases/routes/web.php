@@ -15,6 +15,8 @@ Route::middleware('auth')->prefix('purchases')->name('purchases.')->group(functi
         Route::get('/{id}/print', [PrintController::class, 'invoice'])->name('print')->middleware('can:purchases.invoices.view')->whereNumber('id');
     });
 
+    Route::livewire('/reports/analysis', Livewire\Reports\PurchasesAnalysis::class)->name('reports.analysis')->middleware('can:purchases.reports.view');
+
     Route::prefix('returns')->name('returns.')->group(function () {
         Route::livewire('/', Livewire\Returns\Index::class)->name('index')->middleware('can:purchases.returns.view');
         // ?invoice={id}

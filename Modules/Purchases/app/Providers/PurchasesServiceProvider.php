@@ -34,5 +34,6 @@ class PurchasesServiceProvider extends ErpModuleServiceProvider
         $menu->group('purchases', 'purchases::menu.purchases', 'bi-cart-plus', order: 35);
         $menu->add(new MenuItem('purchases', 'purchases::menu.invoices', 'purchases.invoices.index', 'bi-receipt-cutoff', 'purchases.invoices.view', 10));
         $menu->add(new MenuItem('purchases', 'purchases::menu.returns', 'purchases.returns.index', 'bi-arrow-return-left', 'purchases.returns.view', 20));
+        $menu->add(new MenuItem('purchases', 'purchases::menu.report', 'purchases.reports.analysis', 'bi-graph-up', 'purchases.reports.view', 30));
     }
 }
