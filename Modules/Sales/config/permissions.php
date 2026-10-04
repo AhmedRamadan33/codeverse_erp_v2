@@ -12,6 +12,7 @@ return [
     'sales.returns.post',
     'sales.returns.cancel',
     'sales.price_lists.manage',
+    'sales.reports.view',
     // Post past a customer's credit limit when the mode is "block".
     'sales.credit_limit.override',
 ];

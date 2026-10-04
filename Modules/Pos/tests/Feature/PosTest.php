@@ -7,6 +7,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
+use Livewire\Livewire;
 use Modules\Accounting\Enums\AccountSubtype;
 use Modules\Accounting\Ledger\Ledger;
 use Modules\Accounting\Models\PaymentMethod;
@@ -27,6 +28,7 @@ use Modules\Pos\Models\Receipt;
 use Modules\Pos\Models\Register;
 use Modules\Pos\Models\Shift;
 use Modules\Products\Models\Product;
+use Modules\Sales\Livewire\Reports\SalesAnalysis;
 use Tests\Concerns\InstallsErp;
 use Tests\TestCase;
 
@@ -268,6 +270,20 @@ class PosTest extends TestCase
         // Someone else's shift needs pos.shifts.manage to close.
         $this->expectException(AuthorizationException::class);
         app(ShiftActions::class)->close($cashier, $this->shift, '100');
+    }
+
+    public function test_pos_sales_and_returns_appear_in_the_sales_report(): void
+    {
+        $sale = $this->sell('3', [[$this->cash, '34.20']]);
+        $this->returnOf($sale, '1');
+
+        // 2 units net: 20 sales, 12 cost.
+        $this->actingAs($this->admin);
+        Livewire::test(SalesAnalysis::class)
+            ->set('groupBy', 'channel')
+            ->assertSee(__('sales::reports.channels.pos'))
+            ->assertSee('20.00')
+            ->assertSee('12.00');
     }
 
     public function test_selling_without_an_open_shift_is_refused(): void

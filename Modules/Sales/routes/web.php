@@ -25,6 +25,8 @@ Route::middleware('auth')->prefix('sales')->name('sales.')->group(function () {
         Route::get('/{id}/print', [PrintController::class, 'return'])->name('print')->middleware('can:sales.returns.view')->whereNumber('id');
     });
 
+    Route::livewire('/reports/analysis', Livewire\Reports\SalesAnalysis::class)->name('reports.analysis')->middleware('can:sales.reports.view');
+
     Route::prefix('price-lists')->name('price-lists.')->middleware('can:sales.price_lists.manage')->group(function () {
         Route::livewire('/', Livewire\PriceLists\Index::class)->name('index');
         Route::livewire('/create', Livewire\PriceLists\Form::class)->name('create');
