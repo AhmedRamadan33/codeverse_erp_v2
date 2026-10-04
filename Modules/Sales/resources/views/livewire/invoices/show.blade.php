@@ -117,6 +117,7 @@
                 <button type="button" class="btn btn-outline-danger" wire:click="$toggle('showCancel')">{{ __('sales::invoices.cancel') }}</button>
             @endcan
         @endif
+        <a href="{{ route('sales.invoices.print', $invoice->id) }}" target="_blank" class="btn btn-outline-primary"><i class="bi bi-printer"></i> {{ __('core::ui.print') }}</a>
         <a href="{{ route('sales.invoices.index') }}" class="btn btn-outline-secondary ms-auto">{{ __('core::ui.cancel') }}</a>
     </div>
 

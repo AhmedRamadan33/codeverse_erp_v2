@@ -29,4 +29,9 @@ return [
     'address' => 'Address',
     'date' => 'Date',
     'user' => 'User',
+    'print' => 'Print',
+    'tax_number' => 'Tax reg. no.',
+    'commercial_register' => 'Commercial reg.',
+    'signature_prepared' => 'Prepared by',
+    'signature_received' => 'Received by',
 ];

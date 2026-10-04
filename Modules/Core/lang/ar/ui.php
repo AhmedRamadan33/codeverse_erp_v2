@@ -29,4 +29,9 @@ return [
     'address' => 'العنوان',
     'date' => 'التاريخ',
     'user' => 'المستخدم',
+    'print' => 'طباعة',
+    'tax_number' => 'رقم التسجيل الضريبي',
+    'commercial_register' => 'السجل التجاري',
+    'signature_prepared' => 'إعداد',
+    'signature_received' => 'استلام',
 ];

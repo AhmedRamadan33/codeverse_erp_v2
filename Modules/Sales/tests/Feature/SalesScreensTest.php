@@ -148,6 +148,19 @@ class SalesScreensTest extends TestCase
         $this->assertNull(CustomerProfile::find($this->customer->id)?->price_list_id);
     }
 
+    public function test_invoices_and_returns_print_on_a4(): void
+    {
+        $invoice = app(InvoiceActions::class)->post($this->admin, $this->draft());
+        $return = app(\Modules\Sales\Actions\ReturnActions::class);
+        $return = $return->post($this->admin, $return->save($this->admin, $invoice, [
+            'date' => now()->toDateString(), 'lines' => [['sales_invoice_line_id' => $invoice->lines()->value('id'), 'quantity' => '1']],
+        ]));
+
+        $this->get(route('sales.invoices.print', $invoice->id))->assertOk()->assertSee($invoice->number)->assertSee($this->customer->name)->assertSee('120.00');
+        $this->get(route('sales.returns.print', $return->id))->assertOk()->assertSee($return->number)->assertSee($invoice->number);
+        $this->actingAs(User::factory()->create())->get(route('sales.invoices.print', $invoice->id))->assertForbidden();
+    }
+
     public function test_pages_render_and_need_permissions(): void
     {
         $invoice = $this->draft();

@@ -65,6 +65,7 @@
                 <button type="button" class="btn btn-outline-danger" wire:click="$toggle('showCancel')">{{ __('sales::returns.cancel') }}</button>
             @endcan
         @endif
+        <a href="{{ route('sales.returns.print', $return->id) }}" target="_blank" class="btn btn-outline-primary"><i class="bi bi-printer"></i> {{ __('core::ui.print') }}</a>
         <a href="{{ route('sales.returns.index') }}" class="btn btn-outline-secondary ms-auto">{{ __('core::ui.cancel') }}</a>
     </div>
 

@@ -69,6 +69,9 @@ class PurchaseScreensTest extends TestCase
             ->call('save')
             ->assertHasNoErrors();
         $this->assertSame('136.8000', (string) PurchaseReturn::sole()->total);
+
+        $this->get(route('purchases.invoices.print', $invoice->id))->assertOk()->assertSee($invoice->fresh()->number)->assertSee($this->supplier->name)->assertSee('273.60');
+        $this->get(route('purchases.returns.print', PurchaseReturn::sole()->id))->assertOk();
     }
 
     public function test_the_picker_scans_a_barcode_into_its_unit(): void

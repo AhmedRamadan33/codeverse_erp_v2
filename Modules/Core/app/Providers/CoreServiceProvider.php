@@ -80,6 +80,14 @@ class CoreServiceProvider extends ErpModuleServiceProvider
             }
         });
 
+        // Printed documents carry the full company header.
+        View::composer('core::layouts.print', function ($view) {
+            $settings = $this->app->make(Settings::class);
+            $view->with('company', collect(['name', 'tax_number', 'commercial_register', 'address', 'phone'])
+                ->mapWithKeys(fn (string $key) => [$key => $settings->get("core.company_{$key}")])
+                ->all());
+        });
+
         $this->registerMenu($this->app->make(Menu::class));
     }
 
