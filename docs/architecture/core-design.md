@@ -539,3 +539,23 @@ PostDeferredValuation::handle(array<string, int[]> $sources, Model $entrySource,
 | Discounts | Line and document discounts. The document discount is distributed proportionally and stored per line. D11, §5.1 |
 | Credit limit | Setting `block` / `warn` / `off`, default `warn`, override permission. D12, §5.2 |
 | Cost centers | Optional, `requires_cost_center` flag per account (default off), after v1.0. D13 |
+
+## 17. EgyptTax module (proposal, awaiting approval)
+
+Optional module (`requires`: Core, Accounting, Products, Pos) for ETA-registered Egyptian customers. First scope: the **E-Receipt** for POS receipts. The B2B **E-Invoice** (document signing with a USB token/HSM) comes later in the same module and reuses the item codes and tax mapping. Spec: [ETA SDK, Receipt v1.2](https://sdk.invoicing.eta.gov.eg/documents/receipt-v1-2/), [Return Receipt v1.2](https://sdk.invoicing.eta.gov.eg/documents/return-receipt-v1-2/), [Submit Receipt](https://sdk.invoicing.eta.gov.eg/ereceiptapi/02-submit-receipt/).
+
+**What ETA requires (checked against the SDK):**
+- Each receipt carries a `uuid` = SHA256 (64 hex) of the receipt serialized and flattened with an empty `uuid`, and the `previousUUID` of the device's previous receipt (empty only for its first). Receipts of one device therefore form a chain and must be built in order.
+- Sale receipts are type `s`, returns type `r` with the `referenceUUID` of the sale.
+- Amounts up to 5 decimals (v1 truncated them to integers: not ported).
+- Buyer id and name are mandatory for a business buyer, or a person when the total is ≥ 150,000 EGP.
+- Submission (`POST /api/v1/receiptsubmissions`) answers 202 and validates further asynchronously; an identical payload within 10 minutes is refused as duplicate (422 + `Retry-After`).
+- Auth: `POST /connect/token` (client credentials) with POS headers `posserial`, `pososversion`, `posmodelframework`, `presharedkey`; tokens last 1 hour.
+
+**Design:**
+- Tables (EgyptTax-owned): `eta_settings` per installation (environment `preprod`/`production`, RIN, trade name, activity code, client id, client secret **encrypted**); `eta_devices` per POS register (serial, OS version, model framework, pre-shared key **encrypted**, branch code, branch address); `eta_item_codes` (product → `EGS`/`GS1` code); `eta_unit_codes` (unit → ETA unit type, e.g. `EA`, `KGM`); `eta_tax_codes` (tax → ETA `taxType`/`subType`, e.g. `T1`/`V009`); `eta_receipts` (POS receipt → device, uuid, previous uuid, payload, status `pending`/`submitted`/`valid`/`invalid`/`failed`, submission uuid, long id, errors, attempts).
+- POS is unchanged: EgyptTax listens to `PosReceiptCompleted`. The listener only **builds and stores** the document (uuid and chain fixed in receipt order under a lock on the device), so a sale never waits for ETA.
+- Sending: after the response (`dispatchAfterResponse`), and a scheduled `egypttax:submit` every minute that sends pending receipts per device in order and retries failures with back-off. This needs only the scheduler cron already required for backups (no queue worker). A later `egypttax:sync` reads the validation status (valid/invalid) of submitted receipts.
+- A receipt is printed at once with its uuid; the ETA QR/long id is shown when known.
+- Screens: settings, devices, code mapping (items/units/taxes, with a list of products missing a code), receipts log with status, errors and "resend". An invalid receipt is fixed and resent as a new receipt with `referenceOldUUID`.
+- Secrets are never logged or stored in the log table; HTTPS verification stays on.
