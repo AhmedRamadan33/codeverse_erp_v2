@@ -21,18 +21,24 @@ class PostDeferredValuation
     public function __construct(private readonly Valuation $valuation) {}
 
     /**
-     * @param  array<int, array{0: string, 1: int}>  $sources  [morph class, id] of the documents whose moves to value
+     * @param  array<string, int[]>  $sources  ids of the documents whose moves to value, by morph class
      * @param  Model  $entrySource  the document the entry belongs to (e.g. the shift)
      */
     public function handle(array $sources, Model $entrySource, CarbonImmutable $date, int $branchId, string $counterAccountKey, ?User $postedBy = null): ?JournalEntry
     {
         TransactionGuard::assertActive('PostDeferredValuation');
 
+        // Without sources the filter below would match every deferred move.
+        $sources = array_filter($sources);
+        if ($sources === []) {
+            return null;
+        }
+
         $moves = StockMove::query()
             ->whereNull('journal_entry_id')
             ->where(function ($query) use ($sources) {
-                foreach ($sources as [$type, $id]) {
-                    $query->orWhere(fn ($q) => $q->where('source_type', $type)->where('source_id', $id));
+                foreach ($sources as $type => $ids) {
+                    $query->orWhere(fn ($q) => $q->where('source_type', $type)->whereIn('source_id', $ids));
                 }
             })
             ->lockForUpdate()

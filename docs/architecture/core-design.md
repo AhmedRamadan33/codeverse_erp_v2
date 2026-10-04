@@ -84,7 +84,9 @@ The use-case action holds the transaction. Locks are taken in this fixed order t
 3. Partner-related rows (credit-limit check) if needed.
 4. Number sequences, **last**, because they are the hottest rows.
 
-InnoDB runs at REPEATABLE READ: a plain `SELECT` inside a transaction reads the snapshot taken at the transaction's first read, even after a lock was waited for. So **every read that decides a write while posting must be a locking read** (`lockForUpdate`): stock balances, available quantity, batch quantities, reconciliation residuals. Otherwise two postings that queued on the same lock both act on the old value (found by `ConcurrentPostingTest`, which posts the last unit from two processes).
+**Isolation.** Under InnoDB's default REPEATABLE READ, a plain `SELECT` reads the snapshot taken at the transaction's first read, even after a lock was waited for, so two postings that queued on the same lock both acted on the old value (`ConcurrentPostingTest` found it twice: the last unit sold twice, and two credit sales passing the same credit limit). Two rules:
+- The connection runs at **READ COMMITTED** (`config/database.php`), so a read made after taking a lock sees every posting committed before it. This is what makes "lock the customer, then read their ledger balance" correct without locking ledger rows.
+- Rows the posting itself updates from what it read (stock balances, available and batch quantities, reconciliation residuals) are still read with `lockForUpdate`, so the value and the lock come from the same read.
 
 ## 4. Core module
 
@@ -321,20 +323,55 @@ All amounts below are in base currency. "Inventory posts" means the entry is mad
 Why GRNI even when the invoice and the receipt are one document? Separate goods receipts can be added later without changing any posting rule.
 
 ### 7.1 POS
-- **Per receipt:**
-  - Stock moves: POS calls `IssueStock` with `deferValuation: true`. The cost is fixed at that moment, but no journal entry is made yet (§9.2).
-  - The ETA E-Receipt is submitted for each receipt.
-- **Credit sale to a known customer (per receipt):**
-  - The receipt posts its own entry at once, like a sales invoice: Dr Receivable (partner).
-  - Its stock is issued **without** deferring valuation, so it also gets its own COGS entry.
-  - The credit-limit check applies (§5.2).
-- **Shift close** (`CloseShift`) posts one entry for all paid receipts of the shift:
-  - Dr Cash/Bank per payment method.
-  - Cr Revenue per mapped account.
-  - Cr Tax output per tax.
-  - The cash over/short against the counted amount goes to the mapped `pos.cash_difference` account.
-  - In the same transaction, POS calls `Inventory\Actions\PostDeferredValuation` for the shift's receipts. It posts one Dr COGS / Cr Inventory entry from the costs already stored on the moves and stamps them with its `journal_entry_id`.
-- **POS returns in an open shift** are netted in the shift entry. Returns after the shift is closed post their own entry.
+
+**Tables** (module `POS`, requires Sales):
+
+| Table | Key columns |
+|-------|-------------|
+| `pos_registers` | code, name (translatable), branch_id, warehouse_id, cash_payment_method_id (the drawer), price_list_id nullable, is_active |
+| `pos_shifts` | number, register_id, branch_id, user_id (cashier), status (`open`/`closed`), opened_at, opening_float, closed_at, closed_by, expected_cash, counted_cash, cash_difference, journal_entry_id, valuation_entry_id. At most one open shift per register (unique generated column) and per cashier (checked under lock). |
+| `pos_receipts` | number, shift_id, register_id, branch_id, warehouse_id, partner_id, kind (`sale`/`return`), original_receipt_id, date, price_list_id, discount_type/value, subtotal, discount_total, tax_total, total, paid_total, tendered, change, is_credit, due_date, journal_entry_id (credit receipts only), created_by |
+| `pos_receipt_lines` | like sales invoice lines, plus `cost`; return lines point to `original_line_id` |
+| `pos_receipt_payments` | receipt_id, payment_method_id, amount (always positive; a return's payments are refunds) |
+
+**Rules:**
+- POS sells in the base currency only (v1.0).
+- A receipt is **posted when it is completed**: no drafts, no edits, no cancellation. A mistake is corrected by a return receipt. A cart that is not completed is not stored.
+- Every receipt belongs to the cashier's open shift, and the shift is locked while a receipt is added, so a shift cannot close half-way through a receipt.
+- Prices come from the customer's price list, else the register's price list, else the product (`Sales\Pricing\PriceResolver`). Changing a price needs `pos.prices.override`; a discount needs `pos.discounts.give`.
+- After commit, POS fires `PosReceiptCompleted`; EgyptTax will listen to it to submit the E-Receipt (per receipt).
+
+**Paid receipt** (walk-in or named customer, payments = total):
+- Stock: `IssueStock` with `deferValuation: true`. The cost is fixed and stored on the line, but no entry yet (§9.2).
+- No journal entry: it is part of the shift entry.
+- Cash tendered above the total is returned as change; only the total is recorded as paid.
+
+**Credit receipt** (named customer, payments < total):
+- Posts its own entry at once: Dr payment accounts for what was paid, Dr Receivable (partner, due date from payment terms) for the rest, Cr Revenue, Cr Tax output.
+- Stock is issued **without** deferring valuation, so it gets its own COGS entry.
+- The credit-limit check applies to the unpaid part (§5.2).
+- Its cash still counts in the drawer (expected cash), but not in the shift entry.
+
+**Return receipt** (always against a receipt, recorded in the cashier's current open shift):
+- Lines are limited to what is still returnable; amounts are the original line's per-unit net and tax (so discounts are returned pro rata).
+- Stock comes back at the original line's cost (`ReceiveStock`).
+- Return of a paid receipt: refund payments = total; deferred valuation; netted in the current shift entry (whichever shift the original was in).
+- Return of a credit receipt: no refund; posts its own entry at once (Dr Sales returns, Dr Tax output / Cr Receivable) and its own valuation entry.
+
+**Shift close** (`CloseShift`, needs the cashier or `pos.shifts.manage`):
+- Expected cash = opening float + cash-drawer payments of all receipts of the shift − cash-drawer refunds.
+- The cashier enters the counted cash; the difference (counted − expected) goes to the mapped `pos.cash_difference` account against the drawer's account.
+- One entry for the shift's paid receipts and their returns:
+  - Dr each payment method's account (payments − refunds; a negative net is a credit).
+  - Cr Revenue per mapped account (sales net); Dr Sales returns (returns net).
+  - Cr Tax output per tax (sales tax − returns tax).
+  - The cash difference line.
+- In the same transaction, `PostDeferredValuation` posts one Dr COGS / Cr Inventory entry (netted with returns) for the shift's deferred moves.
+- Both entries are dated on the closing day.
+
+**API** (`/api/v1/pos/…`, for the mobile POS; same actions as the selling screen): `setup` (registers, payment methods, the cashier's POS permissions), `products?barcode=|search=` (with prices for the customer or register), `shifts/current`, `POST shifts`, `shifts/{id}`, `POST shifts/{id}/close`, `POST receipts`, `receipts/{id}`, `POST receipts/{id}/returns`. A credit sale over the limit in `warn` mode answers 422 `credit_limit_confirm`; the client resends with `confirm_over_limit: true`.
+
+**After v1.0:** pay-ins/pay-outs and cash handover to a safe during a shift, held (parked) carts, foreign-currency payments, multiple drawers per register.
 
 ## 8. Products module
 
@@ -380,7 +417,7 @@ ReceiveStock::handle(StockOperationData $op): StockResult                 // in-
 IssueStock::handle(StockOperationData $op): StockResult                   // out-moves at cost + valuation entry
 TransferStock::handle(StockOperationData $op, int $toWarehouseId): StockResult
 ReverseStock::handle(Model $source, $date, $reason, $branchId, $user): StockResult  // cancellations
-PostDeferredValuation::handle(array $sources, Model $entrySource, ...): ?JournalEntry  // POS shift close
+PostDeferredValuation::handle(array<string, int[]> $sources, Model $entrySource, ...): ?JournalEntry  // POS shift close
 ```
 - `StockOperationData` carries `deferValuation` (default `false`).
   - When it is `true`, the moves and their costs are written and the caches are updated, but no journal entry is made.
@@ -475,8 +512,6 @@ PostDeferredValuation::handle(array $sources, Model $entrySource, ...): ?Journal
 
 ## 15. Implementation order
 
-| Phase | Scope |
-|-------|-------|
 ### Milestone v1.0: first sellable release
 
 | Phase | Scope |

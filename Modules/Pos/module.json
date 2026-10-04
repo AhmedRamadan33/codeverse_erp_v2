@@ -1,0 +1,14 @@
+{
+    "name": "Pos",
+    "alias": "pos",
+    "description": "Point of sale: registers, cashier shifts and receipts posted per shift.",
+    "keywords": [],
+    "version": "0.1.0",
+    "requires": ["Core", "Accounting", "Products", "Inventory", "Sales"],
+    "installer": "Modules\\Pos\\PosInstaller",
+    "priority": 60,
+    "providers": [
+        "Modules\\Pos\\Providers\\PosServiceProvider"
+    ],
+    "files": []
+}
