@@ -40,6 +40,9 @@ class ConcurrentPostingTest extends TestCase
     /** @var array<string, int> */
     private array $watermarks = [];
 
+    /** @var int[] products whose cost rows to remove */
+    private array $productIds = [];
+
     public function beginDatabaseTransaction(): void
     {
         //
@@ -69,18 +72,55 @@ class ConcurrentPostingTest extends TestCase
     {
         $warehouse = Warehouse::where('branch_id', $this->branch->id)->firstOrFail();
         $product = Product::factory()->create();
-        $customer = Partner::factory()->create();
         $this->receive([new StockLineData($product->id, $warehouse->id, '1', '10')], null, StockMoveType::Opening, 'opening_balance_equity');
 
-        $invoiceIds = [];
-        foreach (range(1, 2) as $_) {
-            $invoiceIds[] = app(InvoiceActions::class)->save($this->admin, [
-                'date' => now()->toDateString(), 'partner_id' => $customer->id, 'warehouse_id' => $warehouse->id,
-                'currency_id' => Currency::where('code', 'EGP')->value('id'),
-                'lines' => [['product_id' => $product->id, 'unit_id' => $product->base_unit_id, 'quantity' => '1']],
-            ])->id;
-        }
+        $invoiceIds = $this->drafts(Partner::factory()->create(), $product, $warehouse);
+        $outputs = $this->race($invoiceIds, $product);
+        $summary = implode(' | ', $outputs);
 
+        $this->assertSame('posted', $outputs[0], $summary);
+        $this->assertStringStartsWith('refused', $outputs[1], $summary);
+        $this->assertSame(1, SalesInvoice::whereKey($invoiceIds)->where('status', DocumentStatus::Posted)->count());
+        $this->assertSame('0.0000', $this->onHand($product->id, $warehouse->id));
+        $this->assertStockConsistent();
+    }
+
+    public function test_two_processes_cannot_both_pass_the_credit_limit(): void
+    {
+        $warehouse = Warehouse::where('branch_id', $this->branch->id)->firstOrFail();
+        $product = Product::factory()->create(['sale_price' => '100']);
+        $this->receive([new StockLineData($product->id, $warehouse->id, '5', '10')], null, StockMoveType::Opening, 'opening_balance_equity');
+
+        // Each invoice fits the limit on its own; both together do not (mode "warn", unconfirmed).
+        $invoiceIds = $this->drafts(Partner::factory()->create(['credit_limit' => '150']), $product, $warehouse);
+        $outputs = $this->race($invoiceIds, $product);
+        $summary = implode(' | ', $outputs);
+
+        $this->assertSame('posted', $outputs[0], $summary);
+        $this->assertStringStartsWith('refused', $outputs[1], $summary);
+        $this->assertSame(1, SalesInvoice::whereKey($invoiceIds)->where('status', DocumentStatus::Posted)->count());
+    }
+
+    /**
+     * @return int[] two draft invoices for one unit each
+     */
+    private function drafts(Partner $customer, Product $product, Warehouse $warehouse): array
+    {
+        return array_map(fn () => app(InvoiceActions::class)->save($this->admin, [
+            'date' => now()->toDateString(), 'partner_id' => $customer->id, 'warehouse_id' => $warehouse->id,
+            'currency_id' => Currency::where('code', 'EGP')->value('id'),
+            'lines' => [['product_id' => $product->id, 'unit_id' => $product->base_unit_id, 'quantity' => '1']],
+        ])->id, [1, 2]);
+    }
+
+    /**
+     * Posts both invoices from two processes at once and returns their sorted outputs.
+     *
+     * @param  int[]  $invoiceIds
+     * @return string[]
+     */
+    private function race(array $invoiceIds, Product $product): array
+    {
         // Hold the product's cost row so both processes queue on it, then release them together.
         DB::beginTransaction();
         DB::table('product_costs')->where('product_id', $product->id)->lockForUpdate()->first();
@@ -91,15 +131,9 @@ class ConcurrentPostingTest extends TestCase
 
         $outputs = array_map(fn (array $p) => $this->finish($p), $processes);
         sort($outputs);
-        $summary = implode(' | ', $outputs);
+        $this->productIds[] = $product->id;
 
-        $this->assertSame('posted', $outputs[0], $summary);
-        $this->assertStringStartsWith('refused', $outputs[1], $summary);
-        $this->assertSame(1, SalesInvoice::whereKey($invoiceIds)->where('status', DocumentStatus::Posted)->count());
-        $this->assertSame('0.0000', $this->onHand($product->id, $warehouse->id));
-        $this->assertStockConsistent();
-
-        DB::table('product_costs')->where('product_id', $product->id)->delete();
+        return $outputs;
     }
 
     /**
@@ -141,6 +175,7 @@ class ConcurrentPostingTest extends TestCase
     protected function tearDown(): void
     {
         DB::statement('set foreign_key_checks = 0');
+        DB::table('product_costs')->whereIn('product_id', $this->productIds)->delete();
         foreach ($this->tables() as $table) {
             DB::table($table)->where('id', '>', $this->watermarks[$table] ?? PHP_INT_MAX)->delete();
         }

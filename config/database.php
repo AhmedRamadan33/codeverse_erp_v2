@@ -60,6 +60,10 @@ return [
             'strict' => true,
             // Never rely on the server default: MyISAM has no transactions, foreign keys or row locks.
             'engine' => 'InnoDB',
+            // Postings lock a row, then read what decides the write (stock, a customer's balance).
+            // Under the default REPEATABLE READ that read can come from an older snapshot; with
+            // READ COMMITTED it sees every posting committed before the lock was granted.
+            'isolation_level' => 'READ COMMITTED',
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
