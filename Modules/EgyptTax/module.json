@@ -4,6 +4,7 @@
     "description": "Egyptian Tax Authority (ETA) integration: E-Receipts for POS receipts.",
     "keywords": [],
     "version": "0.1.0",
+    "experimental": true,
     "requires": ["Core", "Accounting", "Products", "Pos"],
     "installer": "Modules\\EgyptTax\\EgyptTaxInstaller",
     "priority": 70,

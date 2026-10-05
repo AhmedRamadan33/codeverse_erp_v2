@@ -62,6 +62,7 @@ class Index extends Component
                 'requires' => $manager->requires($m),
                 'enabled' => $manager->isEnabled($m->getName()),
                 'locked' => in_array($m->getName(), $alwaysEnabled, true),
+                'available' => $manager->isAvailable($m),
             ]);
 
         return view('core::livewire.modules.index', ['modules' => $rows])->title(__('core::menu.modules'));

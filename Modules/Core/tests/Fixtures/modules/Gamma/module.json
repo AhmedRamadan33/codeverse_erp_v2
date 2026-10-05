@@ -1,0 +1,8 @@
+{
+    "name": "Gamma",
+    "alias": "gamma",
+    "version": "1.0.0",
+    "experimental": true,
+    "requires": [],
+    "providers": []
+}

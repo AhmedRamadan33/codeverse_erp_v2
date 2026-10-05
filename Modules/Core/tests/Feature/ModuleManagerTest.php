@@ -60,7 +60,7 @@ class ModuleManagerTest extends TestCase
     {
         Schema::dropIfExists('alpha_items');
         DB::table('migrations')->where('migration', 'like', '%create_alpha_items_table')->delete();
-        InstalledModule::whereIn('name', ['Alpha', 'Beta'])->delete();
+        InstalledModule::whereIn('name', ['Alpha', 'Beta', 'Gamma'])->delete();
         // test_core_cannot_be_disabled may leave Core untouched; nothing else to undo.
 
         parent::tearDown();
@@ -104,6 +104,25 @@ class ModuleManagerTest extends TestCase
 
         $this->assertTrue($this->manager->isEnabled('Alpha'));
         $this->assertSame(1, DB::table('alpha_items')->count());
+    }
+
+    public function test_an_experimental_module_is_available_only_when_the_installation_allows_it(): void
+    {
+        config(['modules.activators.database.experimental-allowed' => []]);
+        $this->assertArrayNotHasKey('Gamma', $this->manager->optional());
+
+        try {
+            $this->manager->enable('Gamma');
+            $this->fail('An experimental module was enabled.');
+        } catch (ModuleException) {
+            $this->assertFalse($this->manager->isEnabled('Gamma'));
+            $this->assertNull(InstalledModule::find('Gamma'));
+        }
+
+        config(['modules.activators.database.experimental-allowed' => ['Gamma']]);
+        $this->assertArrayHasKey('Gamma', $this->manager->optional());
+        $this->manager->enable('Gamma');
+        $this->assertTrue($this->manager->isEnabled('Gamma'));
     }
 
     public function test_core_cannot_be_disabled(): void

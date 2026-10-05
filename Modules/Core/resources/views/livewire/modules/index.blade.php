@@ -35,6 +35,8 @@
                             <span class="text-body-secondary small">{{ __('core::modules.always_enabled') }}</span>
                         @elseif ($module['enabled'])
                             <button type="button" class="btn btn-sm btn-outline-danger" wire:click="disable('{{ $module['name'] }}')" wire:confirm="{{ __('core::modules.confirm_disable') }}">{{ __('core::modules.disable') }}</button>
+                        @elseif (! $module['available'])
+                            <span class="badge text-bg-light">{{ __('core::modules.experimental_badge') }}</span>
                         @else
                             <button type="button" class="btn btn-sm btn-primary" wire:click="enable('{{ $module['name'] }}')" wire:loading.attr="disabled">{{ __('core::modules.enable') }}</button>
                         @endif

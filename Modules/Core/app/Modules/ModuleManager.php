@@ -33,6 +33,10 @@ class ModuleManager
             return;
         }
 
+        if (! $this->isAvailable($module)) {
+            throw ModuleException::make('experimental', ['module' => $module->getName()]);
+        }
+
         foreach ($this->requires($module) as $required) {
             if (! $this->isEnabled($required)) {
                 throw ModuleException::make('requires_missing', ['module' => $module->getName(), 'required' => $required]);
@@ -165,12 +169,21 @@ class ModuleManager
         $optional = [];
 
         foreach ($this->sortByDependencies($this->modules->all()) as $module) {
-            if (! in_array($module->getName(), $base, true)) {
+            if (! in_array($module->getName(), $base, true) && $this->isAvailable($module)) {
                 $optional[$module->getName()] = array_values(array_diff($this->requires($module), $base));
             }
         }
 
         return $optional;
+    }
+
+    /**
+     * Whether the module may be enabled here: an experimental module only when the installation allows it.
+     */
+    public function isAvailable(Module $module): bool
+    {
+        return ! $module->get('experimental', false)
+            || in_array($module->getName(), config('modules.activators.database.experimental-allowed', []), true);
     }
 
     public function isEnabled(string $name): bool

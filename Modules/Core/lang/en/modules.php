@@ -11,6 +11,8 @@ return [
     'upgraded' => 'Module :module upgraded from :from to :to.',
     'nothing_to_upgrade' => 'All modules are up to date.',
     'already_installed' => 'This installation is already set up.',
+    'experimental' => 'Module :module is experimental and not available on this installation yet.',
+    'experimental_badge' => 'Experimental, not available yet',
     'fields' => [
         'name' => 'Module',
         'requires' => 'Requires',

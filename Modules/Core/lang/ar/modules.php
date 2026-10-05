@@ -11,6 +11,8 @@ return [
     'upgraded' => 'تم تحديث الموديول :module من :from إلى :to.',
     'nothing_to_upgrade' => 'كل الموديولات محدثة.',
     'already_installed' => 'تم إعداد هذا النظام من قبل.',
+    'experimental' => 'الموديول :module تجريبي وغير متاح على هذا النظام بعد.',
+    'experimental_badge' => 'تجريبي، غير متاح بعد',
     'fields' => [
         'name' => 'الموديول',
         'requires' => 'يعتمد على',

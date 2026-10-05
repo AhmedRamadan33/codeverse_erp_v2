@@ -120,6 +120,11 @@ class EReceiptTest extends TestCase
         ]);
     }
 
+    public function test_the_module_stays_experimental_until_tested_against_eta(): void
+    {
+        $this->assertTrue(app(\Nwidart\Modules\Contracts\RepositoryInterface::class)->find('EgyptTax')->get('experimental'));
+    }
+
     public function test_the_serializer_follows_the_eta_canonical_form(): void
     {
         $serializer = new Serializer;

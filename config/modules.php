@@ -316,6 +316,9 @@ return [
             'class' => Modules\Core\Modules\DatabaseActivator::class,
             'cache-file' => env('MODULES_STATUS_CACHE', true) ? base_path('bootstrap/cache/installed_modules.php') : null,
             'always-enabled' => ['Core', 'Accounting'],
+            // Modules marked "experimental" in module.json can be enabled only when listed here
+            // (comma-separated names), e.g. while they wait for testing against a live service.
+            'experimental-allowed' => array_values(array_filter(array_map('trim', explode(',', (string) env('ERP_EXPERIMENTAL_MODULES', ''))))),
             // Tests boot and migrate every module present in the codebase.
             'enable-all' => (bool) env('MODULES_ENABLE_ALL', false),
         ],

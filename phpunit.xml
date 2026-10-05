@@ -29,6 +29,7 @@
         <env name="DB_DATABASE" value="codeverse_erp_v2_testing"/>
         <env name="DB_URL" value=""/>
         <env name="MODULES_ENABLE_ALL" value="true"/>
+        <env name="ERP_EXPERIMENTAL_MODULES" value="EgyptTax"/>
         <env name="MODULES_STATUS_CACHE" value="false"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
