@@ -1,0 +1,22 @@
+{
+    "name": "codeverse/egypttax",
+    "description": "EgyptTax module for CodeVerse ERP",
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\EgyptTax\\": "app/",
+            "Modules\\EgyptTax\\Database\\Factories\\": "database/factories/",
+            "Modules\\EgyptTax\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\EgyptTax\\Tests\\": "tests/"
+        }
+    }
+}

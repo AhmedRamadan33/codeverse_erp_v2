@@ -7,13 +7,14 @@ use Illuminate\View\View;
 use Modules\Core\Currencies\Currencies;
 use Modules\Core\Settings\Settings;
 use Modules\Pos\Models\Receipt;
+use Modules\Pos\Printing\ReceiptPrintExtras;
 
 /**
  * An 80 mm receipt for a thermal printer; the page prints itself.
  */
 class ReceiptPrintController
 {
-    public function __invoke(int $id, Settings $settings, Currencies $currencies): View
+    public function __invoke(int $id, Settings $settings, Currencies $currencies, ReceiptPrintExtras $extras): View
     {
         $receipt = Receipt::with(['lines.product', 'lines.unit', 'payments.method', 'partner', 'register', 'branch', 'creator', 'original'])->findOrFail($id);
 
@@ -30,6 +31,7 @@ class ReceiptPrintController
             'phone' => $settings->get('core.company_phone'),
             'scale' => $currencies->base()->decimal_places,
             'currency' => $currencies->base()->code,
+            'extras' => $extras->render($receipt),
         ]);
     }
 }

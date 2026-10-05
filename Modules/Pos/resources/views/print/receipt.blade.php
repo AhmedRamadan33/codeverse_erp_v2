@@ -64,6 +64,8 @@
         @endif
     </table>
     <hr>
+    {{-- Trusted HTML from other modules (ReceiptPrintExtras). --}}
+    {!! $extras !!}
     <div class="center">{{ __('pos::receipts.thanks') }}</div>
 </body>
 </html>

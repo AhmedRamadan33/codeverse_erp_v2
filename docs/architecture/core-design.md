@@ -540,7 +540,7 @@ PostDeferredValuation::handle(array<string, int[]> $sources, Model $entrySource,
 | Credit limit | Setting `block` / `warn` / `off`, default `warn`, override permission. D12, §5.2 |
 | Cost centers | Optional, `requires_cost_center` flag per account (default off), after v1.0. D13 |
 
-## 17. EgyptTax module (proposal, awaiting approval)
+## 17. EgyptTax module (E-Receipt built)
 
 Optional module (`requires`: Core, Accounting, Products, Pos) for ETA-registered Egyptian customers. First scope: the **E-Receipt** for POS receipts. The B2B **E-Invoice** (document signing with a USB token/HSM) comes later in the same module and reuses the item codes and tax mapping. Spec: [ETA SDK, Receipt v1.2](https://sdk.invoicing.eta.gov.eg/documents/receipt-v1-2/), [Return Receipt v1.2](https://sdk.invoicing.eta.gov.eg/documents/return-receipt-v1-2/), [Submit Receipt](https://sdk.invoicing.eta.gov.eg/ereceiptapi/02-submit-receipt/).
 
@@ -559,3 +559,14 @@ Optional module (`requires`: Core, Accounting, Products, Pos) for ETA-registered
 - A receipt is printed at once with its uuid; the ETA QR/long id is shown when known.
 - Screens: settings, devices, code mapping (items/units/taxes, with a list of products missing a code), receipts log with status, errors and "resend". An invalid receipt is fixed and resent as a new receipt with `referenceOldUUID`.
 - Secrets are never logged or stored in the log table; HTTPS verification stays on.
+
+**As built (branch `egypt-tax`):**
+- Credentials: the company's client id/secret in `eta_settings`; a device may carry its own (ETA issues them per POS in some registrations), otherwise it uses the company's. Secrets and the pre-shared key use Laravel's `encrypted` cast, are write-only in the screens and are excluded from the audit log.
+- Scope: POS receipts (sale `S`, return `R`). Walk-in sales invoices are not covered yet.
+- Item codes are entered by hand (`/egypt-tax/codes`, products without a code listed first). The installer maps the chart template's taxes (`VAT14` → `T1`/`V009`, `VAT0` → `T1`/`V003`); untaxed lines use the configured exempt type (default `T1`/`V003`).
+- Amounts come from the posted receipt: `totalSale` = quantity × price exactly, and the line's discounts plus the currency rounding become its commercial discount, so `netSale` and `total` equal the books. Numbers are sent as JSON numbers with up to 5 decimals; the canonical serialization (`Eta\Serializer`) writes them as `json_encode` does, and the exact JSON is stored in `eta_receipts.payload` and sent as is, so the uuid always matches.
+- A receipt whose data is missing (item/unit/tax code, the buyer's tax number for a company, national id from the threshold) is stored as `unbuilt` with the reasons, outside the chain; it joins the chain (`chain_no`, `previousUUID`) when built, by the scheduled run or "retry".
+- `IssueEReceipt` listens to `PosReceiptCompleted`, builds under a lock on the device, and sends in `app()->terminating()`; errors there are reported and never reach the sale. `egypttax:submit` (every minute, a cache lock per device) sends pending receipts in chain order, 50 per submission; a failed submission waits 1, 2, 4 … 60 minutes (or ETA's `Retry-After`) and holds the device's later receipts back. A 401 renews the token once. `egypttax:sync` (every 5 minutes) reads `valid`/`invalid`.
+- An invalid receipt is reissued as a new E-Receipt with `referenceOldUUID`; the old one becomes `replaced`. A return refers to the latest E-Receipt of its sale (`referenceUUID`) and cannot be built if the sale has none.
+- The POS print shows the uuid and a QR code (`bacon/bacon-qr-code`, SVG) of the ETA share link, through `Pos\Printing\ReceiptPrintExtras`, so POS does not depend on EgyptTax.
+- To confirm on ETA's pre-production environment before the first customer: the receipt type letter case (`S`/`R`), the submission/details response fields, and the QR link format were taken from the SDK and v1 and are tested only against fakes.

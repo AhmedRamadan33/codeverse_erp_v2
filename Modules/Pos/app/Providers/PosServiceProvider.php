@@ -8,6 +8,7 @@ use Modules\Core\Menu\Menu;
 use Modules\Core\Menu\MenuItem;
 use Modules\Core\Support\ErpModuleServiceProvider;
 use Modules\Pos\Models\ReceiptLine;
+use Modules\Pos\Printing\ReceiptPrintExtras;
 use Modules\Products\Models\Product;
 use Modules\Products\Support\ProductUsage;
 use Modules\Sales\Reports\SalesLineSources;
@@ -25,6 +26,13 @@ class PosServiceProvider extends ErpModuleServiceProvider
         EventServiceProvider::class,
         RouteServiceProvider::class,
     ];
+
+    public function register(): void
+    {
+        parent::register();
+
+        $this->app->singleton(ReceiptPrintExtras::class);
+    }
 
     public function boot(): void
     {
